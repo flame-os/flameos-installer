@@ -62,32 +62,32 @@ function list_partitions() {
 function select_efi_partition() {
     show_banner "Select the EFI Partition"
     echo "Please select the EFI partition:"
-    EFI="${EFI%% *}"
     EFI=$(list_partitions)
+    EFI="${EFI%% *}"
 }
 
 # Function to prompt and select SWAP partition
 function select_swap_partition() {
     show_banner "Select the SWAP Partition"
     echo "Please select the SWAP partition:"
-    SWAP="${SWAP%% *}"
     SWAP=$(list_partitions)
+    SWAP="${SWAP%% *}"
 }
 
 # Function to prompt and select ROOT partition
 function select_root_partition() {
     show_banner "Select the Root Partition"
     echo "Please select the Root(/) partition:"
-    ROOT="${ROOT%% *}"
     ROOT=$(list_partitions)
+    ROOT="${ROOT%% *}"
 }
 
 # Function to prompt and select HOME partition
 function select_home_partition() {
     show_banner "Select the Home Partition"
     echo "Please select the Home(/home) partition:"
-    HOME="${HOME%% *}"
     HOME=$(list_partitions)
+    HOME="${HOME%% *}"
 }
 
 # Function to prompt user for basic inputs
