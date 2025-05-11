@@ -131,10 +131,7 @@ function user_inputs() {
 
     # Suggest common usernames or allow manual entry
     echo "Choose a username (or type your own and press Enter):"
-    USERNAME=$(printf "flame\nuser\nadmin\ncustom" | fzf --prompt="Username: " --print-query | head -1)
-    if [[ "$USERNAME" == "custom" || -z "$USERNAME" ]]; then
-        read -p "Enter custom username: " USERNAME
-    fi
+    read -p "Enter custom username: " USERNAME
 
     # Read password securely
     echo "Enter password for user $USERNAME:"
@@ -174,9 +171,8 @@ function select_desktop_environment() {
     DESKTOP=$(echo -e "1. Hyprland\n2. KDE Plasma\n3. Gnome\n4. XFCE" | fzf --prompt="Select Desktop Environment: " --height=40% --border)
 }
 
-# Function to create and mount filesystems
-function create_and_mount_filesystems() {
-    show_banner "Filesystem Creation and Mounting"
+function create_filesystems() {
+    show_banner "Filesystem Creation"
     echo -e "\nCreating Filesystems...\n"
     mkfs.vfat -F32 -n "EFISYSTEM" "$EFI"
     mkswap "${SWAP}"
@@ -187,7 +183,11 @@ function create_and_mount_filesystems() {
      mkfs.ext4 -L "HOME" "${HOME}"
     fi
     echo -e "\n Skipping reset of ${HOME}"
-	
+}
+
+# Function to create and mount filesystems
+function mount_filesystems() {
+    show_banner "Filesystem Mounting"
     echo -e "\nMounting Filesystems...\n"
     mount -t ext4 "${ROOT}" /mnt
     mkdir -p /mnt/boot
@@ -201,7 +201,7 @@ function install_system() {
     show_banner "Installing FlameOS"
     echo "Installing FlameOS..."
     pacstrap /mnt base base-devel linux linux-firmware
-
+ 
     echo -e "\nSetup Dependencies...\n"
     pacstrap /mnt networkmanager grub efibootmgr os-prober dosfstools mtools intel-ucode amd-ucode bluez bluez-utils blueman git --noconfirm --needed
 
@@ -212,7 +212,7 @@ function install_system() {
 function configure_bootloader() {
     show_banner "Bootloader Installation"
     echo -e "Bootloader Installation...\n"
-    arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id="Flame OS"
+    arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id="FlameOS"
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 }
 
@@ -220,8 +220,8 @@ function configure_bootloader() {
 function configure_system() {
     show_banner "System Configuration"
     echo -e "\nSetting up system...\n"
-
-    cat <<REALEND > /mnt/next.sh
+rsync -av --exclude='install.sh' --exclude='.git' --exclude='.gitignore' ./ /mnt/setup
+    cat <<REALEND > /mnt/setup/next.sh
 useradd -m $USERNAME
 usermod -aG wheel,audio,video,optical,storage,power $USERNAME
 echo "$USERNAME:$PASSWORD" | chpasswd
@@ -246,31 +246,24 @@ EOF
 echo "-----------------------"
 echo "Display and Audio Drivers"
 echo "-----------------------"
-pacman -S pulseaudio --noconfirm --needed
+pacman -S pipewire pipewire-pulse wireplumber  --noconfirm --needed
 
 systemctl enable NetworkManager
 # Desktop Environment
 chown -R $USERNAME:$USERNAME /home/$USERNAME
-su $USERNAME
 
 if [[ "$DESKTOP" == "1. Hyprland" ]]; then
-
-    git clone https://github.com/aislxflames/flamedots.git /home/$USERNAME/flamedots
-    cd /home/$USERNAME/flamedots
-    chmod +x build.sh
-    ./build.sh
+    /setup/hyprland.sh $USERNAME
 elif [[ "$DESKTOP" == "2. KDE Plasma" ]]; then
-    pacman -S plasma-desktop sddm --noconfirm --needed
-    systemctl enable sddm
+    /setup/kde.sh $USERNAME
 elif [[ "$DESKTOP" == "3. Gnome" ]]; then
-    pacman -S gnome gnome-extra gdm --noconfirm --needed
-    systemctl enable gdm
+    /setup/gnome.sh $USERNAME
 elif [[ "$DESKTOP" == "4. XFCE" ]]; then
-    pacman -S xfce4 xfce4-goodies lightdm lightdm-gtk-greeter --noconfirm --needed
-    systemctl enable lightdm
+    /setup/xfce.sh $USERNAME
 fi
 REALEND
-    arch-chroot /mnt sh /next.sh
+    arch-chroot /mnt sh setup/next.sh
+sudo rm -rf /mnt/setup
 }
 
 # Main function to execute all steps in order
@@ -292,10 +285,12 @@ function main() {
     echo "Press [Enter] to continue or [Ctrl+C] to cancel."
     read
 
-    create_and_mount_filesystems
-    install_system
+    #create_filesystems
+    mount_filesystems
+    #install_system
     configure_bootloader
     configure_system
+
 
     show_banner "Installation Complete"
     echo "FlameOS has been successfully installed!"
@@ -303,3 +298,4 @@ function main() {
 
 # Run the main function
 main
+
