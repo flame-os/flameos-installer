@@ -36,10 +36,10 @@ function manage_disks() {
     
     while true; do
         # Fetch available disks and partitions using lsblk
-        DISKS=$(lsblk -d -o NAME,SIZE,TYPE,MOUNTPOINT | grep 'disk' | awk '{print $1 " (" $2 ")"}')
+        DISKS=$(lsblk -d -o NAME,SIZE,TYPE | grep 'disk' | awk '{print $1 " (" $2 ")"}')
 
-        # Show disks with fzf for selection
-        SELECTED_DISK=$(echo "$DISKS" | fzf --prompt="Select a disk to manage or press 'Next' to skip: ")
+        # Show disks with fzf for selection, add "Next" option to skip
+        SELECTED_DISK=$(echo -e "$DISKS\nNext" | fzf --prompt="Select a disk to manage or press 'Next' to skip: ")
 
         # If user selects 'Next' or skips
         if [[ "$SELECTED_DISK" == "Next" ]]; then
@@ -56,7 +56,7 @@ function manage_disks() {
             cfdisk /dev/$SELECTED_DISK_NAME
 
             # Check if user pressed 'Quit' in cfdisk
-            if [ $? -ne 0 ]; then
+            if [[ $? -ne 0 ]]; then
                 echo "cfdisk was exited prematurely. Would you like to try again?"
                 read -p "Press Enter to retry, or type 'skip' to skip: " RETRY_OPTION
                 if [[ "$RETRY_OPTION" == "skip" ]]; then
@@ -69,12 +69,13 @@ function manage_disks() {
                 break
             fi
         else
-            # No disk selected, break the loop
+            # No disk selected, exit the loop
             echo "No disk selected. Exiting disk management."
             break
         fi
     done
 }
+
 
 
 
