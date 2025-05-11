@@ -3,16 +3,31 @@
 # Function to display a banner or logo
 function show_banner() {
     clear
-    echo "############################################"
-    echo "#         Welcome to FlameOS Installer     #"
-    echo "############################################"
+echo "
+  █████▒██▓    ▄▄▄       ███▄ ▄███▓▓█████     ▒█████    ██████ 
+▓██   ▒▓██▒   ▒████▄    ▓██▒▀█▀ ██▒▓█   ▀    ▒██▒  ██▒▒██    ▒ 
+▒████ ░▒██░   ▒██  ▀█▄  ▓██    ▓██░▒███      ▒██░  ██▒░ ▓██▄   
+░▓█▒  ░▒██░   ░██▄▄▄▄██ ▒██    ▒██ ▒▓█  ▄    ▒██   ██░  ▒   ██▒
+░▒█░   ░██████▒▓█   ▓██▒▒██▒   ░██▒░▒████▒   ░ ████▓▒░▒██████▒▒
+ ▒ ░   ░ ▒░▓  ░▒▒   ▓▒█░░ ▒░   ░  ░░░ ▒░ ░   ░ ▒░▒░▒░ ▒ ▒▓▒ ▒ ░
+ ░     ░ ░ ▒  ░ ▒   ▒▒ ░░  ░      ░ ░ ░  ░     ░ ▒ ▒░ ░ ░▒  ░ ░
+ ░ ░     ░ ░    ░   ▒   ░      ░      ░      ░ ░ ░ ▒  ░  ░  ░  
+           ░  ░     ░  ░       ░      ░  ░       ░ ░        ░  
+                                                              
+" | lolcat
     echo -e "$1\n"
 }
 
 function network_setup() {
 	show_banner "Network and wifi Setup"
 	echo "Launching networkmanager"
-	nmtui
+if ping -c 1 1.1.1.1 &> /dev/null; then
+    echo "1.1.1.1 is reachable. Skipping nmtui."
+else
+    echo "1.1.1.1 is not reachable. Running nmtui."
+    nmtui
+fi
+
 }
 
 # Function to manage disks using cfdisk
@@ -43,14 +58,11 @@ function list_partitions() {
     echo "$partitions"
 }
 
-
-
-
-
 # Function to prompt and select EFI partition
 function select_efi_partition() {
     show_banner "Select the EFI Partition"
     echo "Please select the EFI partition:"
+    EFI="${EFI%% *}"
     EFI=$(list_partitions)
 }
 
@@ -58,6 +70,7 @@ function select_efi_partition() {
 function select_swap_partition() {
     show_banner "Select the SWAP Partition"
     echo "Please select the SWAP partition:"
+    SWAP="${SWAP%% *}"
     SWAP=$(list_partitions)
 }
 
@@ -65,6 +78,7 @@ function select_swap_partition() {
 function select_root_partition() {
     show_banner "Select the Root Partition"
     echo "Please select the Root(/) partition:"
+    ROOT="${ROOT%% *}"
     ROOT=$(list_partitions)
 }
 
@@ -72,6 +86,7 @@ function select_root_partition() {
 function select_home_partition() {
     show_banner "Select the Home Partition"
     echo "Please select the Home(/home) partition:"
+    HOME="${HOME%% *}"
     HOME=$(list_partitions)
 }
 
@@ -204,7 +219,11 @@ pacman -S pulseaudio --noconfirm --needed
 
 systemctl enable NetworkManager
 # Desktop Environment
+chown -R $USERNAME:$USERNAME /home/$USERNAME
+su $USERNAME
+
 if [[ "$DESKTOP" == "1. Hyprland" ]]; then
+
     git clone https://github.com/aislxflames/flamedots.git /home/$USERNAME/flamedots
     cd /home/$USERNAME/flamedots
     chmod +x build.sh
