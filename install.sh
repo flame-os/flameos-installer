@@ -33,22 +33,49 @@ fi
 # Function to manage disks using cfdisk
 function manage_disks() {
     show_banner "Disk Management - Use cfdisk to manage your disks"
+    
+    while true; do
+        # Fetch available disks and partitions using lsblk
+        DISKS=$(lsblk -d -o NAME,SIZE,TYPE,MOUNTPOINT | grep 'disk' | awk '{print $1 " (" $2 ")"}')
 
-    # Fetch available disks and partitions using lsblk
-    DISKS=$(lsblk -d -o NAME,SIZE,TYPE,MOUNTPOINT | grep 'disk' | awk '{print $1 " (" $2 ")"}')
+        # Show disks with fzf for selection
+        SELECTED_DISK=$(echo "$DISKS" | fzf --prompt="Select a disk to manage or press 'Next' to skip: ")
 
-    # Show disks with fzf for selection
-    SELECTED_DISK=$(echo "$DISKS" | fzf --prompt="Select a disk to manage: ")
+        # If user selects 'Next' or skips
+        if [[ "$SELECTED_DISK" == "Next" ]]; then
+            echo "Skipping disk setup."
+            break
+        fi
 
-    # If a disk is selected, run cfdisk on that disk
-    if [[ -n "$SELECTED_DISK" ]]; then
-        SELECTED_DISK_NAME=$(echo "$SELECTED_DISK" | awk '{print $1}')
-        echo "Launching cfdisk for /dev/$SELECTED_DISK_NAME..."
-        cfdisk /dev/$SELECTED_DISK_NAME
-    else
-        echo "No disk selected. Exiting."
-    fi
+        # If a disk is selected, run cfdisk on that disk
+        if [[ -n "$SELECTED_DISK" ]]; then
+            SELECTED_DISK_NAME=$(echo "$SELECTED_DISK" | awk '{print $1}')
+            echo "Launching cfdisk for /dev/$SELECTED_DISK_NAME..."
+
+            # Run cfdisk on the selected disk
+            cfdisk /dev/$SELECTED_DISK_NAME
+
+            # Check if user pressed 'Quit' in cfdisk
+            if [ $? -ne 0 ]; then
+                echo "cfdisk was exited prematurely. Would you like to try again?"
+                read -p "Press Enter to retry, or type 'skip' to skip: " RETRY_OPTION
+                if [[ "$RETRY_OPTION" == "skip" ]]; then
+                    echo "Skipping disk setup."
+                    break
+                fi
+            else
+                # Disk management was completed, break the loop
+                echo "Disk setup completed for /dev/$SELECTED_DISK_NAME."
+                break
+            fi
+        else
+            # No disk selected, break the loop
+            echo "No disk selected. Exiting disk management."
+            break
+        fi
+    done
 }
+
 
 
 # Function to list disks and partitions
