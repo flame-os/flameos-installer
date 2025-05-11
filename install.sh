@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+sudo pacman -Sy pirewire wireplumber xdg-desktop-portal-hyprland
 # Function to display a banner or logo
 function show_banner() {
     clear
@@ -36,10 +36,11 @@ function manage_disks() {
     
     while true; do
         # Fetch available disks and partitions using lsblk
-        DISKS=$(lsblk -d -o NAME,SIZE,TYPE | grep 'disk' | awk '{print $1 " (" $2 ")"}')
+        DISKS=$(lsblk -d -o NAME,SIZE,TYPE | grep 'disk' | awk '{print $1 " ('$2')"}')
 
         # Show disks with fzf for selection, add "Next" option to skip
-        SELECTED_DISK=$(echo -e "$DISKS\nNext" | fzf --prompt="Select a disk to manage or press 'Next' to skip: ")
+        SELECTED_DISK=$(echo -e "$DISKS\nNext" | fzf --border --prompt="Select a disk to manage or press 'Next' to skip: " \
+            --height=12 --min-height=6 --reverse --border=rounded --ansi)
 
         # If user selects 'Next' or skips
         if [[ "$SELECTED_DISK" == "Next" ]]; then
@@ -55,12 +56,9 @@ function manage_disks() {
             # Run cfdisk on the selected disk
             cfdisk /dev/$SELECTED_DISK_NAME
 
-            # Wait for the user to exit the cfdisk menu
-            read -p "Press Enter to retry, or type 'skip' to skip: " RETRY_OPTION
-            if [[ "$RETRY_OPTION" == "skip" ]]; then
-                echo "Skipping disk setup."
-                break
-            fi
+            # After quitting cfdisk, show fzf menu again
+            echo "You have exited cfdisk. You can select a new disk or skip."
+
         else
             # No disk selected, exit the loop
             echo "No disk selected. Exiting disk management."
@@ -68,6 +66,7 @@ function manage_disks() {
         fi
     done
 }
+
 
 
 
