@@ -212,7 +212,7 @@ function install_system() {
 function configure_bootloader() {
     show_banner "Bootloader Installation"
     echo -e "Bootloader Installation...\n"
-    arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id="FlameOS"
+    arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="FlameOS"
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 }
 
