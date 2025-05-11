@@ -33,9 +33,23 @@ fi
 # Function to manage disks using cfdisk
 function manage_disks() {
     show_banner "Disk Management - Use cfdisk to manage your disks"
-    echo "Launching cfdisk..."
-    cfdisk
+
+    # Fetch available disks and partitions using lsblk
+    DISKS=$(lsblk -d -o NAME,SIZE,TYPE,MOUNTPOINT | grep 'disk' | awk '{print $1 " (" $2 ")"}')
+
+    # Show disks with fzf for selection
+    SELECTED_DISK=$(echo "$DISKS" | fzf --prompt="Select a disk to manage: ")
+
+    # If a disk is selected, run cfdisk on that disk
+    if [[ -n "$SELECTED_DISK" ]]; then
+        SELECTED_DISK_NAME=$(echo "$SELECTED_DISK" | awk '{print $1}')
+        echo "Launching cfdisk for /dev/$SELECTED_DISK_NAME..."
+        cfdisk /dev/$SELECTED_DISK_NAME
+    else
+        echo "No disk selected. Exiting."
+    fi
 }
+
 
 # Function to list disks and partitions
 function list_partitions() {
