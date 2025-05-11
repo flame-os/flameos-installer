@@ -93,15 +93,27 @@ function select_home_partition() {
 # Function to prompt user for basic inputs
 function user_inputs() {
     show_banner "User Configuration"
-    echo "Please enter the username you want to create:"
-    read USERNAME
 
-    echo "Please enter the password for the user:"
+    # Suggest common usernames or allow manual entry
+    echo "Choose a username (or type your own and press Enter):"
+    USERNAME=$(printf "flame\nuser\nadmin\ncustom" | fzf --prompt="Username: " --print-query | head -1)
+    if [[ "$USERNAME" == "custom" || -z "$USERNAME" ]]; then
+        read -p "Enter custom username: " USERNAME
+    fi
+
+    # Read password securely
+    echo "Enter password for user $USERNAME:"
     read -s PASSWORD
+    echo
 
-    echo "Please enter the hostname for the system:"
-    read HOSTNAME
+    # Hostname suggestions
+    echo "Choose a hostname (or type your own and press Enter):"
+    HOSTNAME=$(printf "flameos\narchbox\nhyprland\ncustom" | fzf --prompt="Hostname: " --print-query | head -1)
+    if [[ "$HOSTNAME" == "custom" || -z "$HOSTNAME" ]]; then
+        read -p "Enter custom hostname: " HOSTNAME
+    fi
 }
+
 
 # Function to select timezone
 function select_timezone() {
@@ -160,7 +172,7 @@ function install_system() {
     pacstrap /mnt base base-devel linux linux-firmware
 
     echo -e "\nSetup Dependencies...\n"
-    pacstrap /mnt networkmanager grub efibootmgr os-prober dosfstools mtools intel-ucode bluez bluez-utils blueman git --noconfirm --needed
+    pacstrap /mnt networkmanager grub efibootmgr os-prober dosfstools mtools intel-ucode amd-ucode bluez bluez-utils blueman git --noconfirm --needed
 
     genfstab -U /mnt >> /mnt/etc/fstab
 }
@@ -169,20 +181,8 @@ function install_system() {
 function configure_bootloader() {
     show_banner "Bootloader Installation"
     echo -e "Bootloader Installation...\n"
-    arch-chroot /mnt grub-install --target=x86_64-efi --bootloader-id=FlameOS --recheck --no-floppy
+    arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id="Flame OS"
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
-
-    cat <<EOF > /mnt/boot/loader/entries/flameos.conf
-title FlameOS
-linux /vmlinuz-linux
-initrd /initramfs-linux.img
-options root=PARTUUID=$(blkid -s PARTUUID -o value "${ROOT}") rw
-EOF
-    cat <<EOF > /mnt/boot/loader/loader.conf
-default flameos
-timeout 5
-editor 0
-EOF
 }
 
 # Function to configure the system
