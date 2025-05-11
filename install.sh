@@ -55,17 +55,10 @@ function manage_disks() {
             # Run cfdisk on the selected disk
             cfdisk /dev/$SELECTED_DISK_NAME
 
-            # Check if user pressed 'Quit' in cfdisk
-            if [[ $? -ne 0 ]]; then
-                echo "cfdisk was exited prematurely. Would you like to try again?"
-                read -p "Press Enter to retry, or type 'skip' to skip: " RETRY_OPTION
-                if [[ "$RETRY_OPTION" == "skip" ]]; then
-                    echo "Skipping disk setup."
-                    break
-                fi
-            else
-                # Disk management was completed, break the loop
-                echo "Disk setup completed for /dev/$SELECTED_DISK_NAME."
+            # Wait for the user to exit the cfdisk menu
+            read -p "Press Enter to retry, or type 'skip' to skip: " RETRY_OPTION
+            if [[ "$RETRY_OPTION" == "skip" ]]; then
+                echo "Skipping disk setup."
                 break
             fi
         else
@@ -75,6 +68,7 @@ function manage_disks() {
         fi
     done
 }
+
 
 
 
