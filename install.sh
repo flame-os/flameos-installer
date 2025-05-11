@@ -142,11 +142,7 @@ function user_inputs() {
     echo
 
     # Hostname suggestions
-    echo "Choose a hostname (or type your own and press Enter):"
-    HOSTNAME=$(printf "flameos\narchbox\nhyprland\ncustom" | fzf --prompt="Hostname: " --print-query | head -1)
-    if [[ "$HOSTNAME" == "custom" || -z "$HOSTNAME" ]]; then
         read -p "Enter custom hostname: " HOSTNAME
-    fi
 }
 
 
@@ -175,10 +171,6 @@ function select_keyboard_layout() {
 function select_desktop_environment() {
     show_banner "Desktop Environment Selection"
     echo "Please enter Your Desktop Environment:"
-    echo "1. Hyprland"
-    echo "2. KDE Plasma"
-    echo "3. Gnome"
-    echo "4. XFCE"
     DESKTOP=$(echo -e "1. Hyprland\n2. KDE Plasma\n3. Gnome\n4. XFCE" | fzf --prompt="Select Desktop Environment: " --height=40% --border)
 }
 
@@ -190,8 +182,12 @@ function create_and_mount_filesystems() {
     mkswap "${SWAP}"
     swapon "${SWAP}"
     mkfs.ext4 -L "ROOT" "${ROOT}"
-    mkfs.ext4 -L "HOME" "${HOME}"
-
+        HOME_RESET=$(echo -e "Yes\nNo" | fzf --prompt="Want to reset the home (${HOME}) pertition ?: " --height=40% --border)
+    if [[ "$DESKTOP" == "Yes" ]]; then
+     mkfs.ext4 -L "HOME" "${HOME}"
+    fi
+    echo -e "\n Skipping reset of ${HOME}"
+	
     echo -e "\nMounting Filesystems...\n"
     mount -t ext4 "${ROOT}" /mnt
     mkdir -p /mnt/boot
