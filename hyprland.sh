@@ -22,6 +22,7 @@ sudo systemctl enable sddm
 # Using su -c to run the commands as the user
 git clone https://github.com/aislxflames/flamedots /home/$username/flamedots
 
+cp -r /setup/.bash_profile /home/$username/
 cat <<EOF > desktop.sh
 cd ~/flamedots
 kitty -e ~/flamedots/build.sh
