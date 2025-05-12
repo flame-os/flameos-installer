@@ -23,8 +23,9 @@ sudo systemctl enable sddm
 git clone https://github.com/aislxflames/flamedots /home/$username/flamedots
 
 cat <<EOF > desktop.sh
-cd /home/$(logname)/flamedots
-bash build.sh
+cd ~/flamedots
+kitty -e ~/flameos/build.sh
+sleep 1
 rm -rf desktop.sh
 EOF
 
