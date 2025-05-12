@@ -24,7 +24,7 @@ git clone https://github.com/aislxflames/flamedots /home/$username/flamedots
 
 cat <<EOF > desktop.sh
 cd ~/flamedots
-kitty -e ~/flameos/build.sh
+kitty -e ~/flamedots/build.sh
 sleep 1
 rm -rf desktop.sh
 EOF
