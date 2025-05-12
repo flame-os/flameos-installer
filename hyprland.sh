@@ -16,13 +16,13 @@ SOURCE_WALLPAPERS="./wallpapers"
 sudo chown -R "$username:$username" "$USER_HOME"
 sudo chown -R "$username:$username" /opt
 
-sudo pacman -S hyprland kitty wofi sddm xdg-desktop-portal-hyprland --noconfirm
-sudo systemctl enable sddm
+#sudo pacman -S hyprland kitty wofi sddm xdg-desktop-portal-hyprland --noconfirm
+#sudo systemctl enable sddm
 
 # Using su -c to run the commands as the user
-git clone https://github.com/aislxflames/flamedots /home/$username/flamedots
+#git clone https://github.com/aislxflames/flamedots /home/$username/flamedots
 
-sed -i '/^# startup commands/a exec-once = kitty -e /home/$username/desktop.sh' /home/$username/.config/hypr/hyprland.conf
+
 cat <<EOF > desktop.sh
 cd ~/flamedots
 kitty -e ~/flamedots/build.sh
@@ -30,6 +30,7 @@ sleep 1
 rm -rf desktop.sh
 EOF
 
+cp -r .bash_profile /home/$username
 mv desktop.sh /home/$username
 chown -R $username:$username /home/$username/desktop.sh
 chmod +x /home/$username/desktop.sh

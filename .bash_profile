@@ -1,1 +1,1 @@
-kitty -e ~/desktop.sh
+~/desktop.sh
