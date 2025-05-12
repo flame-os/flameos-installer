@@ -188,9 +188,9 @@ function create_filesystems() {
 function mount_filesystems() {
     show_banner "Filesystem Mounting"
     echo -e "\nMounting Filesystems...\n"
-    umount /mnt
     umount /mnt/boot
     umount /mnt/home
+    umount /mnt
     mount -t ext4 "${ROOT}" /mnt
     mkdir -p /mnt/boot
     mount -t vfat "${EFI}" /mnt/boot
@@ -273,8 +273,8 @@ function main() {
     show_banner ""
     manage_disks
     select_efi_partition
-    select_swap_partition
     select_root_partition
+    select_swap_partition
     select_home_partition
     user_inputs
     select_timezone
