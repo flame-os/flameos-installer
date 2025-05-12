@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-sudo pacman -Sy pirewire wireplumber xdg-desktop-portal-hyprland
 # Function to display a banner or logo
 function show_banner() {
     clear
