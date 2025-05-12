@@ -285,9 +285,9 @@ function main() {
     echo "Press [Enter] to continue or [Ctrl+C] to cancel."
     read
 
-    #create_filesystems
+    create_filesystems
     mount_filesystems
-    #install_system
+    install_system
     configure_bootloader
     configure_system
 
