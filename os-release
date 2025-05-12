@@ -1,5 +1,3 @@
-sudo rm -rf /etc/os-release
-sudo cat <<EOF > os-release
 NAME="Flame OS"
 PRETTY_NAME="Flame OS"
 ID=flameos
@@ -12,7 +10,3 @@ LOGO=flameos-logo
 
 IMAGE_ID=flameos
 IMAGE_VERSION=2025.05.11
-EOF
-sudo cp -rf os-release /etc/os-release
-
-echo -e "\n[flameos-repo]\nSigLevel = Optional DatabaseOptional\nServer = https://theflames-presence.github.io/flameos-repo/\$arch" | sudo tee -a /etc/pacman.conf > /dev/null
