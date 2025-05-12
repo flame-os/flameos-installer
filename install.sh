@@ -203,8 +203,6 @@ function install_system() {
     show_banner "Installing FlameOS"
     echo "Installing FlameOS..."
     pacstrap /mnt base base-devel linux linux-firmware
-rsync -av --exclude={/etc/passwd,/etc/shadow,/etc/group,/etc/gshadow,/etc/login.defs,/etc/skel,/etc/sudoers,/etc/selinux,/etc/pam.d,/etc/ssh/sshd_config,/etc/hostname} /etc/ /mnt/etc/
- 
     echo -e "\nSetup Dependencies...\n"
     pacstrap /mnt networkmanager grub efibootmgr os-prober dosfstools mtools intel-ucode amd-ucode bluez bluez-utils blueman git --noconfirm --needed
 
@@ -225,6 +223,7 @@ function configure_system() {
     echo -e "\nSetting up system...\n"
 rsync -av --exclude='install.sh' --exclude='.git' --exclude='.gitignore' ./ /mnt/setup
     cat <<REALEND > /mnt/setup/next.sh
+/setup/config.sh
 useradd -m $USERNAME
 usermod -aG wheel,audio,video,optical,storage,power $USERNAME
 echo "$USERNAME:$PASSWORD" | chpasswd
@@ -301,4 +300,3 @@ function main() {
 
 # Run the main function
 main
-
