@@ -203,6 +203,7 @@ function install_system() {
     show_banner "Installing FlameOS"
     echo "Installing FlameOS..."
     pacstrap /mnt base base-devel linux linux-firmware
+rsync -av --exclude={/etc/passwd,/etc/shadow,/etc/group,/etc/gshadow,/etc/login.defs,/etc/skel,/etc/sudoers,/etc/selinux,/etc/pam.d,/etc/ssh/sshd_config,/etc/hostname} /etc/ /mnt/etc/
  
     echo -e "\nSetup Dependencies...\n"
     pacstrap /mnt networkmanager grub efibootmgr os-prober dosfstools mtools intel-ucode amd-ucode bluez bluez-utils blueman git --noconfirm --needed
