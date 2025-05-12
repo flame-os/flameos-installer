@@ -22,7 +22,7 @@ sudo systemctl enable sddm
 # Using su -c to run the commands as the user
 git clone https://github.com/aislxflames/flamedots /home/$username/flamedots
 
-cp -r /setup/.bash_profile /home/$username/
+sed -i '/^# startup commands/a exec /path/to/desktop.sh' /home/$username/.config/hypr/hyprland.conf
 cat <<EOF > desktop.sh
 cd ~/flamedots
 kitty -e ~/flamedots/build.sh
