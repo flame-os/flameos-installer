@@ -217,7 +217,7 @@ function configure_bootloader() {
     BIOS_VERSION=$(echo -e "New\nOld" | fzf --prompt="Your bios is old or new ?: " --height=40% --border)
     if [[ "$DESKTOP" == "New" ]]; then
        arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="FlameOS"
-    elif
+    else
        arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="FlameOS"
     fi
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
