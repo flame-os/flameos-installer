@@ -26,7 +26,7 @@ else
     echo "1.1.1.1 is not reachable. Running nmtui."
     nmtui
 fi
-
+swww img ~/default.png
 }
 
 # Function to manage disks using cfdisk
@@ -213,7 +213,13 @@ function install_system() {
 function configure_bootloader() {
     show_banner "Bootloader Installation"
     echo -e "Bootloader Installation...\n"
-    arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="FlameOS"
+    H
+    BIOS_VERSION=$(echo -e "New\nOld" | fzf --prompt="Your bios is old or new ?: " --height=40% --border)
+    if [[ "$DESKTOP" == "New" ]]; then
+       arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="FlameOS"
+    elif
+       arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="FlameOS"
+    fi
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 }
 
