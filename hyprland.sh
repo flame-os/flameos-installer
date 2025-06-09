@@ -20,7 +20,7 @@ sudo chown -R "$username:$username" /opt
 #sudo systemctl enable sddm
 
 # Using su -c to run the commands as the user
-#git clone https://github.com/aislxflames/flamedots /home/$username/flamedots
+git clone https://github.com/aislxflames/flamedots /home/$username/flamedots
 
 
 cat <<EOF > desktop.sh
