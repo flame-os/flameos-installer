@@ -16,8 +16,9 @@ SOURCE_WALLPAPERS="./wallpapers"
 sudo chown -R "$username:$username" "$USER_HOME"
 sudo chown -R "$username:$username" /opt
 
-#sudo pacman -S hyprland kitty wofi sddm xdg-desktop-portal-hyprland --noconfirm
-#sudo systemctl enable sddm
+sudo pacman -S hyprland kitty wofi sddm xdg-desktop-portal-hyprland pipewire wireplumber bluez --noconfirm
+sudo systemctl enable sddm
+sudo systemctl enable bluetooth
 
 # Using su -c to run the commands as the user
 git clone https://github.com/aislxflames/flamedots /home/$username/flamedots
