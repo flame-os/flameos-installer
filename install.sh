@@ -302,6 +302,10 @@ function main() {
 
     show_banner "Installation Complete"
     echo "FlameOS has been successfully installed!"
+    read -p "Do you want to reboot now? (y/N): " confirm
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        reboot
+    fi
 }
 
 # Run the main function
