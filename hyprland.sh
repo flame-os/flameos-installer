@@ -26,12 +26,12 @@ git clone https://github.com/aislxflames/flamedots /home/$username/flamedots
 
 cat <<EOF > desktop.sh
 cd ~/flamedots
-kitty -e ~/flamedots/build.sh
+kitty -e bash -c 'nmtui && ~/flamedots/build.sh'
 sleep 1
 rm -rf desktop.sh
 EOF
 
-cp -r .bash_profile /home/$username
+cp -r .bashrc /home/$username
 mv desktop.sh /home/$username
 chown -R $username:$username /home/$username/desktop.sh
 chmod +x /home/$username/desktop.sh
