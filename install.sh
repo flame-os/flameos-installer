@@ -2,7 +2,14 @@
 
 # Function to display a banner or logo
 function show_banner() {
-    clear
+  echo "
+▗▄▄▄▖▗▖    ▗▄▖ ▗▖  ▗▖▗▄▄▄▖     ▗▄▖  ▗▄▄▖
+▐▌   ▐▌   ▐▌ ▐▌▐▛▚▞▜▌▐▌       ▐▌ ▐▌▐▌   
+▐▛▀▀▘▐▌   ▐▛▀▜▌▐▌  ▐▌▐▛▀▀▘    ▐▌ ▐▌ ▝▀▚▖
+▐▌   ▐▙▄▄▖▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖    ▝▚▄▞▘▗▄▄▞▘
+
+"
+  clear
 }
 
 function network_setup() {
