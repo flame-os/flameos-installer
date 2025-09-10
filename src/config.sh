@@ -30,7 +30,7 @@ CLEAR_ON_SHOW=true
 # -------------------------
 # Logging
 # -------------------------
-LOGFILE="/tmp/flameos-install.log"
+LOGFILE="$HOME/flameos-install.log"
 
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOGFILE"

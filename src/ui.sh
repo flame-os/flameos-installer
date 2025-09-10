@@ -10,10 +10,15 @@ show_banner() {
   local title="${1:-}"
   if $CLEAR_ON_SHOW; then clear; fi
   
-  # Get terminal width
+  # Get current terminal width (recalculate each time)
   local width=$(tput cols 2>/dev/null || echo 80)
-  local banner_width=50
+  local banner_width=42  # Actual width of the ASCII art
   local padding=$(( (width - banner_width) / 2 ))
+  
+  # Ensure padding is not negative
+  if [[ $padding -lt 0 ]]; then
+    padding=0
+  fi
   
   # Print each line of banner centered
   printf "%*s▗▄▄▄▖▗▖    ▗▄▖ ▗▖  ▗▖▗▄▄▄▖     ▗▄▖  ▗▄▄▖\n" $padding ""
