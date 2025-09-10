@@ -259,6 +259,50 @@ graphics_driver_step() {
 }
 
 # -------------------------
+# Mirror Region Step
+# -------------------------
+mirror_selection_step() {
+  show_banner "Step: Mirror Region"
+  
+  echo "Current selection: ${MIRROR_REGION:-Worldwide}"
+  echo
+  
+  MIRROR_REGION=$(printf "$(get_available_mirrors)\nGo Back" | eval "$FZF --prompt=\"Mirror > \" --header=\"Choose mirror region for faster downloads\"") || return 1
+  
+  case "$MIRROR_REGION" in
+    "Go Back")
+      return 1
+      ;;
+    *)
+      log "Mirror region set to: $MIRROR_REGION"
+      return 0
+      ;;
+  esac
+}
+
+# -------------------------
+# Audio Driver Step
+# -------------------------
+audio_driver_step() {
+  show_banner "Step: Audio Driver"
+  
+  echo "Current selection: ${AUDIO_DRIVER:-PulseAudio (Default)}"
+  echo
+  
+  AUDIO_DRIVER=$(printf "$(get_available_audio)\nGo Back" | eval "$FZF --prompt=\"Audio > \" --header=\"Choose audio system\"") || return 1
+  
+  case "$AUDIO_DRIVER" in
+    "Go Back")
+      return 1
+      ;;
+    *)
+      log "Audio driver set to: $AUDIO_DRIVER"
+      return 0
+      ;;
+  esac
+}
+
+# -------------------------
 # Auto Detect Graphics
 # -------------------------
 auto_detect_graphics() {

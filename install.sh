@@ -52,7 +52,14 @@ main() {
 # Check if running as root
 check_root() {
   if [[ $EUID -ne 0 ]]; then
-    echo "This installer must be run as root."
+    echo "ERROR: This installer must be run as root."
+    echo "Please run: sudo ./install.sh"
+    echo ""
+    echo "The installer needs root privileges to:"
+    echo "- Format and partition disks"
+    echo "- Mount filesystems"
+    echo "- Install packages"
+    echo "- Configure system files"
     exit 1
   fi
 }

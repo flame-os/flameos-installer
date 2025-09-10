@@ -39,10 +39,12 @@ summary_and_install_flow() {
         return 1
       fi
       format_and_mount_all || { log "Format and mount failed"; return 1; }
+      configure_mirrors
       install_base_system
       write_chroot_script_and_run
       install_bootloader
       install_desktop_environment
+      install_audio_system
       log "Installation sequence finished."
       show_completion_screen
       return 0
@@ -126,6 +128,33 @@ format_and_mount_all() {
   
   log "All partitions formatted and mounted."
   return 0
+}
+
+# -------------------------
+# Mirror Configuration
+# -------------------------
+configure_mirrors() {
+  if [[ -n "${MIRROR_REGION:-}" && "$MIRROR_REGION" != "Worldwide" ]]; then
+    show_banner "Configuring Mirrors: $MIRROR_REGION"
+    log "Setting up mirror for region: $MIRROR_REGION"
+    
+    local mirror_url
+    mirror_url=$(get_mirror_url "$MIRROR_REGION")
+    
+    # Backup original mirrorlist
+    cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+    
+    # Create new mirrorlist with selected region
+    echo "# FlameOS Installer - $MIRROR_REGION mirror" > /etc/pacman.d/mirrorlist
+    echo "Server = $mirror_url\$repo/os/\$arch" >> /etc/pacman.d/mirrorlist
+    echo "" >> /etc/pacman.d/mirrorlist
+    echo "# Fallback mirrors" >> /etc/pacman.d/mirrorlist
+    head -n 10 /etc/pacman.d/mirrorlist.backup | grep "^Server" >> /etc/pacman.d/mirrorlist
+    
+    log "Mirror configuration completed"
+  else
+    log "Using default worldwide mirrors"
+  fi
 }
 
 # -------------------------
@@ -301,6 +330,36 @@ install_desktop_environment() {
   "
   
   log "Desktop environment installation completed"
+}
+
+# -------------------------
+# Audio System Installation
+# -------------------------
+install_audio_system() {
+  if [[ -z "${AUDIO_DRIVER:-}" ]]; then
+    AUDIO_DRIVER="PulseAudio (Default)"
+  fi
+  
+  show_banner "Installing Audio System: $AUDIO_DRIVER"
+  log "Installing audio system: $AUDIO_DRIVER"
+  
+  local audio_packages
+  audio_packages=$(get_audio_packages "$AUDIO_DRIVER")
+  
+  if [[ -n "$audio_packages" ]]; then
+    arch-chroot /mnt bash -c "
+      source /tmp/installer-vars.sh
+      pacman -S --noconfirm $audio_packages
+      
+      # Enable audio services
+      if [[ '$AUDIO_DRIVER' == *'PipeWire'* ]]; then
+        systemctl --user enable pipewire pipewire-pulse wireplumber
+      fi
+    "
+    log "Audio system installation completed"
+  else
+    log "No audio packages to install"
+  fi
 }
 
 # -------------------------

@@ -23,10 +23,16 @@ A professional, modular installer for FlameOS - an Arch Linux-based distribution
 
 1. Boot into Arch Linux live environment
 2. Clone or download this installer
-3. Run as root:
+3. **IMPORTANT: Run as root with sudo:**
    ```bash
    sudo ./install.sh
    ```
+   
+   **⚠️ WARNING: The installer MUST be run with sudo/root privileges for:**
+   - Disk formatting and partitioning
+   - Filesystem mounting
+   - Package installation
+   - System configuration
 
 ## Project Structure
 
