@@ -1,1 +1,22 @@
+# Build artifacts
+*.log
+*.tmp
+
+# Development scripts
 gitpush.sh
+deploy.sh
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+/tmp/
+*.bak
+*~
