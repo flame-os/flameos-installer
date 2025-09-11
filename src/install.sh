@@ -42,6 +42,7 @@ summary_and_install_flow() {
       install_base_system
       write_chroot_script_and_run
       install_bootloader
+      configure_flameos_system
       install_desktop_environment
       install_audio_system
       log "Installation sequence finished."
@@ -280,6 +281,52 @@ install_bootloader() {
     
     log "GRUB installed for BIOS."
   fi
+}
+
+# -------------------------
+# FlameOS System Configuration
+# -------------------------
+configure_flameos_system() {
+  show_banner "Configuring FlameOS System"
+  
+  arch-chroot /mnt bash -c '
+    # Install reflector
+    pacman -S --noconfirm reflector
+    
+    # Create os-release
+    cat > /etc/os-release << "EOF"
+NAME="FlameOS"
+PRETTY_NAME="FlameOS"
+ID=flameos
+BUILD_ID=rolling
+ANSI_COLOR="38;2;220;50;47"
+HOME_URL="https://github.com/flame-os"
+SUPPORT_URL="https://github.com/flame-os"
+BUG_REPORT_URL="https://github.com/flame-os"
+LOGO=flameos
+IMAGE_ID=flameos
+IMAGE_VERSION=2025.05.11
+EOF
+    
+    # Add FlameOS repository
+    if ! grep -q "\[flameos-core\]" /etc/pacman.conf; then
+      cat >> /etc/pacman.conf << "EOF"
+
+[flameos-core]
+SigLevel = Optional DatabaseOptional
+Server = https://flame-os.github.io/core/$arch
+EOF
+    fi
+    
+    # Update GRUB branding
+    sed -i "s/^GRUB_DISTRIBUTOR=.*/GRUB_DISTRIBUTOR=\"FlameOS\"/" /etc/default/grub || \
+      echo "GRUB_DISTRIBUTOR=\"FlameOS\"" >> /etc/default/grub
+    
+    # Regenerate GRUB config
+    grub-mkconfig -o /boot/grub/grub.cfg
+  '
+  
+  log "FlameOS system configuration completed"
 }
 
 # -------------------------
