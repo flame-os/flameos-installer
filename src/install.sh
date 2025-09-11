@@ -318,6 +318,28 @@ Server = https://flame-os.github.io/core/$arch
 EOF
     fi
     
+    # Configure GRUB theme script
+    cat > /etc/grub.d/05_debian_theme << "EOF"
+#!/bin/bash
+
+SHARED_LOGO="/boot/grub/themes/shared/flameos.png"
+
+if [[ ! -f "$SHARED_LOGO" ]]; then
+    echo "Shared logo not found at $SHARED_LOGO"
+    exit 1
+fi
+
+for theme_dir in /boot/grub/themes/*/; do
+    [[ "$theme_dir" == *"/shared/" ]] && continue
+    mkdir -p "${theme_dir}icons"
+    cp "$SHARED_LOGO" "${theme_dir}icons/flameos.png"
+done
+
+echo "Logo copied to all GRUB themes."
+EOF
+    
+    chmod +x /etc/grub.d/05_debian_theme
+    
     # Update GRUB branding
     sed -i "s/^GRUB_DISTRIBUTOR=.*/GRUB_DISTRIBUTOR=\"FlameOS\"/" /etc/default/grub || \
       echo "GRUB_DISTRIBUTOR=\"FlameOS\"" >> /etc/default/grub
