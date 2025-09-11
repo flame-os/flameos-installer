@@ -40,7 +40,7 @@ install() {
       log "Running $dotfiles install script..."
       cd "/tmp/dotfiles/$dotfiles"
       chmod +x install.sh
-      ./install.sh
+      USERNAME="$USERNAME" ./install.sh
     fi
   else
     log "Dotfiles not found, creating basic config..."

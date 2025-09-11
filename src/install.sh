@@ -457,7 +457,7 @@ install_desktop_environment() {
           if [ -f '/tmp/dotfiles/Flamedots/install.sh' ]; then
             cd /tmp/dotfiles/Flamedots
             chmod +x install.sh
-            ./install.sh
+            USERNAME='${USERNAME}' ./install.sh
           fi
         else
           # Create basic Hyprland config
