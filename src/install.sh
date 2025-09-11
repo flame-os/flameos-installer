@@ -25,6 +25,12 @@ summary_and_install_flow() {
   echo " Locale: ${LOCALE:-not set}"
   echo " Desktop: ${DESKTOP:-not set}"
   echo " Graphics packages: ${GRAPHICS_PACKAGES:-none}"
+  if [[ -n "${ADDITIONAL_PACKAGES:-}" ]]; then
+    local pkg_count=$(echo "$ADDITIONAL_PACKAGES" | wc -l)
+    echo " Additional packages: $pkg_count selected"
+  else
+    echo " Additional packages: none"
+  fi
   echo
   
   local act
@@ -39,6 +45,7 @@ summary_and_install_flow() {
         return 1
       fi
       format_and_mount_all || { log "Format and mount failed"; return 1; }
+      select_additional_packages
       install_base_system
       write_chroot_script_and_run
       install_bootloader
@@ -141,23 +148,26 @@ install_base_system() {
   local base_packages="base base-devel linux linux-firmware networkmanager grub efibootmgr dosfstools mtools"
   
   # Add graphics packages if selected
+  local all_packages="$base_packages"
   if [[ -n "${GRAPHICS_PACKAGES:-}" ]]; then
-    pacstrap /mnt $base_packages $GRAPHICS_PACKAGES --noconfirm --needed || {
-      echo "Pacstrap failed! Retrying with basic packages..."
-      pacstrap /mnt base linux linux-firmware grub --noconfirm --needed || {
-        echo "Critical: Base system installation failed!"
-        read -rp "Press Enter to continue anyway..."
-      }
-    }
-  else
-    pacstrap /mnt $base_packages --noconfirm --needed || {
-      echo "Pacstrap failed! Retrying with basic packages..."
-      pacstrap /mnt base linux linux-firmware grub --noconfirm --needed || {
-        echo "Critical: Base system installation failed!"
-        read -rp "Press Enter to continue anyway..."
-      }
-    }
+    all_packages="$all_packages $GRAPHICS_PACKAGES"
   fi
+  
+  # Add additional packages if selected
+  if [[ -n "${ADDITIONAL_PACKAGES:-}" ]]; then
+    local additional_list=$(echo "$ADDITIONAL_PACKAGES" | tr '\n' ' ')
+    all_packages="$all_packages $additional_list"
+    log "Including additional packages: $additional_list"
+  fi
+  
+  # Install all packages
+  pacstrap /mnt $all_packages --noconfirm --needed || {
+    echo "Pacstrap failed! Retrying with basic packages..."
+    pacstrap /mnt base linux linux-firmware grub --noconfirm --needed || {
+      echo "Critical: Base system installation failed!"
+      read -rp "Press Enter to continue anyway..."
+    }
+  }
   
   # Generate fstab
   genfstab -U /mnt >> /mnt/etc/fstab || {
@@ -280,6 +290,72 @@ install_bootloader() {
     }
     
     log "GRUB installed for BIOS."
+  fi
+}
+
+# -------------------------
+# Additional Packages Selection
+# -------------------------
+select_additional_packages() {
+  show_banner "Additional Packages Selection"
+  
+  echo "Fetching available packages from repositories..."
+  
+  # Get all available packages from core, extra, and flameos-core repos
+  local all_packages=$(pacman -Sl core extra 2>/dev/null | awk '{print $2}' | sort -u)
+  
+  # Add flameos-core packages if available
+  local flameos_packages=$(pacman -Sl flameos-core 2>/dev/null | awk '{print $2}' | sort -u || true)
+  
+  # Combine all packages
+  local combined_packages=$(echo -e "$all_packages\n$flameos_packages" | sort -u | grep -v '^$')
+  
+  if [[ -z "$combined_packages" ]]; then
+    echo "No packages found. Make sure you have internet connection."
+    read -rp "Press Enter to continue..."
+    return 1
+  fi
+  
+  echo "Select additional packages to install (use TAB for multi-select, ENTER to confirm):"
+  echo "Press ESC or Ctrl+C to skip package selection"
+  echo
+  
+  # Use fzf for multi-select package selection
+  local selected_packages
+  selected_packages=$(echo "$combined_packages" | eval "$FZF --multi --prompt=\"Select packages > \" --header=\"TAB: select/deselect, ENTER: confirm selection\"") || {
+    echo "No additional packages selected."
+    ADDITIONAL_PACKAGES=""
+    return 0
+  }
+  
+  if [[ -n "$selected_packages" ]]; then
+    ADDITIONAL_PACKAGES="$selected_packages"
+    local count=$(echo "$selected_packages" | wc -l)
+    echo
+    echo "Selected $count additional packages:"
+    echo "$selected_packages" | sed 's/^/  - /'
+    echo
+    
+    local confirm
+    confirm=$(printf "Confirm selection\nReselect packages\nSkip additional packages" | eval "$FZF --prompt=\"Action > \" --header=\"Confirm your package selection\"") || confirm="Skip additional packages"
+    
+    case "$confirm" in
+      "Confirm selection")
+        log "Additional packages selected: $(echo "$selected_packages" | tr '\n' ' ')"
+        return 0
+        ;;
+      "Reselect packages")
+        select_additional_packages
+        return $?
+        ;;
+      "Skip additional packages")
+        ADDITIONAL_PACKAGES=""
+        return 0
+        ;;
+    esac
+  else
+    ADDITIONAL_PACKAGES=""
+    echo "No additional packages selected."
   fi
 }
 
