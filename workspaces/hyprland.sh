@@ -33,7 +33,7 @@ install() {
   # Install dotfiles if available
   if [[ -n "$dotfiles" && -d "/tmp/dotfiles/$dotfiles" ]]; then
     log "Installing $dotfiles configuration..."
-    cp -r "/tmp/dotfiles/$dotfiles/"* "/home/$USERNAME/.config/"
+    cp -r "/tmp/dotfiles/$dotfiles/"* "/home/$USERNAME/"
     
     # Run dotfiles install script if it exists
     if [[ -f "/tmp/dotfiles/$dotfiles/install.sh" ]]; then

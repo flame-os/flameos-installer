@@ -451,7 +451,7 @@ install_desktop_environment() {
         
         # Install Flamedots if available
         if [ -d '/tmp/dotfiles/Flamedots' ]; then
-          cp -r /tmp/dotfiles/Flamedots/* /home/${USERNAME}/.config/
+          cp -r /tmp/dotfiles/Flamedots/* /home/${USERNAME}/
           
           # Run dotfiles install script if it exists
           if [ -f '/tmp/dotfiles/Flamedots/install.sh' ]; then
