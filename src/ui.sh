@@ -53,32 +53,32 @@ guided_installation() {
           step=1  # Stay on network step
         fi
         ;;
-      2) # Mirror Region
-        if mirror_selection_step; then
+      2) # Disk Selection
+        if select_disk_step; then
           step=3
         else
           step=1  # Go back to network
         fi
         ;;
-      3) # Disk & Partitions
-        if select_disk_step; then
+      3) # User Configuration
+        if user_config_step; then
           step=4
         else
-          step=2  # Go back to mirror
+          step=2  # Go back to disk
         fi
         ;;
-      4) # User Configuration
-        if user_config_step; then
+      4) # System Configuration
+        if system_config_step; then
           step=5
         else
-          step=3  # Go back to disk
+          step=3  # Go back to user
         fi
         ;;
-      5) # System Configuration
-        if system_config_step; then
+      5) # Desktop Environment
+        if desktop_selection_step; then
           step=6
         else
-          step=4  # Go back to user config
+          step=4  # Go back to system config
         fi
         ;;
       6) # Desktop Environment
@@ -121,11 +121,10 @@ advanced_mode() {
   
   while true; do
     local choice
-    choice=$(printf "Network Setup\nMirror Region\nDisk Management\nUser Configuration\nSystem Configuration\nDesktop Environment\nGraphics Driver\nAudio Driver\nSummary and Install\nExit to Main Menu" | eval "$FZF --prompt=\"Advanced > \" --header=\"Choose configuration step\"") || return 0
+    choice=$(printf "Network Setup\nDisk Management\nUser Configuration\nSystem Configuration\nDesktop Environment\nGraphics Driver\nAudio Driver\nSummary and Install\nExit to Main Menu" | eval "$FZF --prompt=\"Advanced > \" --header=\"Choose configuration step\"") || return 0
     
     case "$choice" in
       "Network Setup") network_setup_step || true ;;
-      "Mirror Region") mirror_selection_step || true ;;
       "Disk Management") select_disk_step || true ;;
       "User Configuration") user_config_step || true ;;
       "System Configuration") system_config_step || true ;;

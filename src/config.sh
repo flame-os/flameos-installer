@@ -42,7 +42,18 @@ log() {
 # Desktop Environments
 # -------------------------
 get_available_desktops() {
-  printf "Hyprland\nKDE Plasma\nGNOME\nXFCE\ni3\nSway\nMinimal"
+  local desktop_dir="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/workspaces"
+  local desktops=()
+  
+  for script in "$desktop_dir"/*.sh; do
+    if [[ -f "$script" ]]; then
+      local name=""
+      source "$script"
+      [[ -n "$name" ]] && desktops+=("$name")
+    fi
+  done
+  
+  printf "%s\n" "${desktops[@]}"
 }
 
 # -------------------------
@@ -72,46 +83,6 @@ get_graphics_packages() {
 # -------------------------
 # Mirror Regions
 # -------------------------
-get_available_mirrors() {
-  printf "Worldwide\nUnited States\nGermany\nFrance\nUnited Kingdom\nCanada\nAustralia\nJapan\nChina\nIndia"
-}
-
-get_mirror_url() {
-  local region="$1"
-  case "$region" in
-    "United States")
-      echo "https://mirror.rackspace.com/archlinux/"
-      ;;
-    "Germany")
-      echo "https://ftp.fau.de/archlinux/"
-      ;;
-    "France")
-      echo "https://archlinux.mailtunnel.eu/"
-      ;;
-    "United Kingdom")
-      echo "https://www.mirrorservice.org/sites/ftp.archlinux.org/"
-      ;;
-    "Canada")
-      echo "https://mirror.csclub.uwaterloo.ca/archlinux/"
-      ;;
-    "Australia")
-      echo "https://mirror.aarnet.edu.au/pub/archlinux/"
-      ;;
-    "Japan")
-      echo "https://ftp.jaist.ac.jp/pub/Linux/ArchLinux/"
-      ;;
-    "China")
-      echo "https://mirrors.tuna.tsinghua.edu.cn/archlinux/"
-      ;;
-    "India")
-      echo "https://mirror.cse.iitk.ac.in/archlinux/"
-      ;;
-    *)
-      echo "https://geo.mirror.pkgbuild.com/"
-      ;;
-  esac
-}
-
 # -------------------------
 # Audio Drivers
 # -------------------------

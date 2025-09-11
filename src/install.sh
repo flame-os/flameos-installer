@@ -39,7 +39,6 @@ summary_and_install_flow() {
         return 1
       fi
       format_and_mount_all || { log "Format and mount failed"; return 1; }
-      configure_mirrors
       install_base_system
       write_chroot_script_and_run
       install_bootloader
@@ -65,7 +64,7 @@ summary_and_install_flow() {
 # Format and Mount
 # -------------------------
 format_and_mount_all() {
-  show_banner "Formatting & Mounting"
+  show_banner "Installing System - Formatting & Mounting"
   log "Starting format/mount with assignments: ${PART_ASSIGN[*]}"
   
   if [[ -z "${ROOT_PART:-}" ]]; then
@@ -131,37 +130,10 @@ format_and_mount_all() {
 }
 
 # -------------------------
-# Mirror Configuration
-# -------------------------
-configure_mirrors() {
-  if [[ -n "${MIRROR_REGION:-}" && "$MIRROR_REGION" != "Worldwide" ]]; then
-    show_banner "Configuring Mirrors: $MIRROR_REGION"
-    log "Setting up mirror for region: $MIRROR_REGION"
-    
-    local mirror_url
-    mirror_url=$(get_mirror_url "$MIRROR_REGION")
-    
-    # Backup original mirrorlist
-    cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
-    
-    # Create new mirrorlist with selected region
-    echo "# FlameOS Installer - $MIRROR_REGION mirror" > /etc/pacman.d/mirrorlist
-    echo "Server = $mirror_url\$repo/os/\$arch" >> /etc/pacman.d/mirrorlist
-    echo "" >> /etc/pacman.d/mirrorlist
-    echo "# Fallback mirrors" >> /etc/pacman.d/mirrorlist
-    head -n 10 /etc/pacman.d/mirrorlist.backup | grep "^Server" >> /etc/pacman.d/mirrorlist
-    
-    log "Mirror configuration completed"
-  else
-    log "Using default worldwide mirrors"
-  fi
-}
-
-# -------------------------
 # Base System Installation
 # -------------------------
 install_base_system() {
-  show_banner "Installing base system (pacstrap)"
+  show_banner "Installing System - Base Packages"
   log "Pacstrapping base system onto /mnt"
   
   # Essential packages for a working system
@@ -198,7 +170,7 @@ install_base_system() {
 # Chroot Configuration
 # -------------------------
 write_chroot_script_and_run() {
-  show_banner "Configuring system in chroot"
+  show_banner "Configuring System"
   
   cat > /mnt/setup_next.sh <<CHROOT
 #!/usr/bin/env bash
@@ -247,7 +219,7 @@ CHROOT
 # Bootloader Installation
 # -------------------------
 install_bootloader() {
-  show_banner "Installing bootloader"
+  show_banner "Installing Bootloader"
   
   # Ensure grub is installed in chroot
   arch-chroot /mnt pacman -S --noconfirm grub efibootmgr dosfstools mtools || {
@@ -321,13 +293,43 @@ install_desktop_environment() {
   
   show_banner "Installing Desktop Environment: $DESKTOP"
   
-  # Install desktop environment using consolidated function
-  arch-chroot /mnt bash -c "
-    source /tmp/installer-vars.sh
-    $(declare -f install_desktop_by_name)
-    $(declare -f log)
-    install_desktop_by_name '$DESKTOP'
-  "
+  # Copy desktop scripts to chroot
+  cp -r "$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/workspaces" /mnt/tmp/
+  
+  # Create desktop installation script
+  cat > /mnt/install_desktop.sh <<DESKTOP_SCRIPT
+#!/usr/bin/env bash
+set -euo pipefail
+
+USERNAME="${USERNAME:-user}"
+DESKTOP="${DESKTOP:-}"
+
+log() {
+  echo "\$(date): \$*" | tee -a /tmp/flameos-install.log
+}
+
+# Source the desktop script and install
+for script in /tmp/workspaces/*.sh; do
+  if [[ -f "\$script" ]]; then
+    source "\$script"
+    if [[ "\${name:-}" == "\$DESKTOP" ]]; then
+      log "Installing \$DESKTOP desktop environment..."
+      install
+      break
+    fi
+  fi
+done
+
+# Clean up
+rm -rf /tmp/workspaces
+DESKTOP_SCRIPT
+
+  chmod +x /mnt/install_desktop.sh
+  arch-chroot /mnt /install_desktop.sh || {
+    echo "Desktop environment installation failed!"
+    read -rp "Press Enter to continue..."
+  }
+  rm -f /mnt/install_desktop.sh
   
   log "Desktop environment installation completed"
 }

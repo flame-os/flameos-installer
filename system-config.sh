@@ -4,13 +4,20 @@ set -euo pipefail
 # FlameOS System Configuration Script
 # Configures OS branding, repositories, and GRUB theme
 
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+}
+
 configure_flameos_system() {
   local grub_theme_dir="${1:-}"
   
   log "Configuring FlameOS system branding..."
   
-  # Create os-release
-  cat > /tmp/os-release << 'EOF'
+  # Install reflector for mirror management
+  pacman -S --noconfirm reflector
+  
+  # Create new os-release content
+  cat > /etc/os-release << 'EOF'
 NAME="FlameOS"
 PRETTY_NAME="FlameOS"
 ID=flameos
@@ -23,11 +30,6 @@ LOGO=flameos
 IMAGE_ID=flameos
 IMAGE_VERSION=2025.05.11
 EOF
-
-  # Replace system os-release
-  rm -f /etc/os-release
-  cp /tmp/os-release /etc/os-release
-  rm /tmp/os-release
   
   # Add FlameOS pacman repository
   if ! grep -q "\[flameos-core\]" /etc/pacman.conf; then
@@ -75,3 +77,8 @@ EOF
   
   log "FlameOS system configuration completed"
 }
+
+# Run the function if script is executed directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  configure_flameos_system "$@"
+fi

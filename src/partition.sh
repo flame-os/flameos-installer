@@ -20,27 +20,22 @@ auto_partition_erase_disk() {
   
   DISK=$(echo "$DISK" | awk '{print $1}')
   
-  # Ask for partition options
+  # Ask for swap partition
   local want_swap
   want_swap=$(printf "Yes\nNo" | eval "$FZF --prompt=\"Create swap partition? > \" --header=\"Do you want a swap partition?\"") || return
   
-  local want_home
-  want_home=$(printf "Yes\nNo" | eval "$FZF --prompt=\"Create /home partition? > \" --header=\"Do you want a separate /home partition?\"") || return
+  # Auto configuration for other options
+  local want_home="No"
+  local fs_type="ext4"
   
-  # Choose filesystem type
-  local fs_type
-  fs_type=$(printf "ext4 (Recommended)\nbtrfs\nxfs\nf2fs" | eval "$FZF --prompt=\"Root filesystem > \" --header=\"Choose filesystem for root partition\"") || return
-  
-  fs_type=$(echo "$fs_type" | awk '{print $1}')
-  
-  echo "Configuration:"
+  echo "Auto Configuration:"
   echo "  Disk: $DISK"
   echo "  Filesystem: $fs_type"
   echo "  Swap: $want_swap"
   echo "  Separate /home: $want_home"
   echo
-  echo "WARNING: This will DELETE ALL DATA on $DISK"
-  read -rp "Type 'ERASE' to confirm: " confirm
+  printf "Will erase %s. Type 'ERASE' to confirm: " "$DISK"
+  read -r confirm
   if [[ "$confirm" != "ERASE" ]]; then
     echo "Cancelled."
     read -rp "Press Enter to continue..."
@@ -54,7 +49,7 @@ auto_partition_erase_disk() {
   local disk_size_gb=$(lsblk -d -o SIZE "$DISK" | tail -n1 | sed 's/[^0-9.]//g' | cut -d. -f1)
   local current_pos=1
   
-  # Create partitions based on system type
+  # Create partitions automatically
   if [[ -d /sys/firmware/efi ]]; then
     # UEFI system
     parted "$DISK" mklabel gpt
@@ -64,91 +59,41 @@ auto_partition_erase_disk() {
     parted "$DISK" set 1 esp on
     current_pos=513
     
-    PART_ASSIGN=()
-    
-    # Detect UEFI vs BIOS and create appropriate boot partition
-    if [[ -d /sys/firmware/efi ]]; then
-      # UEFI system - needs EFI System Partition
-      PART_ASSIGN+=("${DISK}1:/boot/efi")
-      log "UEFI system detected - creating /boot/efi partition"
-      local part_num=2
-    else
-      # BIOS/Legacy system - create /boot partition
-      parted "$DISK" mkpart primary ext4 ${current_pos}MiB $((current_pos + 1024))MiB
-      current_pos=$((current_pos + 1024))
-      PART_ASSIGN+=("${DISK}2:/boot")
-      log "BIOS/Legacy system detected - creating /boot partition"
-      local part_num=3
-    fi
-    
-    # Swap partition if requested
-    if [[ "$want_swap" == "Yes" ]]; then
-      local swap_size=$((disk_size_gb > 40 ? 4 : disk_size_gb / 10))
-      local swap_end=$((current_pos + swap_size * 1024))
-      parted "$DISK" mkpart primary linux-swap ${current_pos}MiB ${swap_end}MiB
-      PART_ASSIGN+=("${DISK}${part_num}:swap")
-      current_pos=$swap_end
-      ((part_num++))
-    fi
-    
-    # Home partition if requested
-    if [[ "$want_home" == "Yes" ]]; then
-      local home_size=$((disk_size_gb / 2))  # Half remaining space
-      local home_end=$((current_pos + home_size * 1024))
-      parted "$DISK" mkpart primary "$fs_type" ${current_pos}MiB ${home_end}MiB
-      PART_ASSIGN+=("${DISK}${part_num}:/home")
-      current_pos=$home_end
-      ((part_num++))
-    fi
-    
-    # Root partition (rest of disk)
-    parted "$DISK" mkpart primary "$fs_type" ${current_pos}MiB 100%
-    PART_ASSIGN+=("${DISK}${part_num}:/")
-    
+    PART_ASSIGN=("${DISK}1:/boot/efi")
+    local part_num=2
   else
     # BIOS system
     parted "$DISK" mklabel msdos
     
-    PART_ASSIGN=()
-    local part_num=1
+    # Boot partition (1GB)
+    parted "$DISK" mkpart primary ext4 ${current_pos}MiB $((current_pos + 1024))MiB
+    parted "$DISK" set 1 boot on
+    current_pos=$((current_pos + 1024))
     
-    # Swap partition if requested
-    if [[ "$want_swap" == "Yes" ]]; then
-      local swap_size=$((disk_size_gb > 40 ? 4 : disk_size_gb / 10))
-      local swap_end=$((current_pos + swap_size * 1024))
-      parted "$DISK" mkpart primary linux-swap ${current_pos}MiB ${swap_end}MiB
-      PART_ASSIGN+=("${DISK}${part_num}:swap")
-      current_pos=$swap_end
-      ((part_num++))
-    fi
-    
-    # Home partition if requested
-    if [[ "$want_home" == "Yes" ]]; then
-      local home_size=$((disk_size_gb / 2))  # Half remaining space
-      local home_end=$((current_pos + home_size * 1024))
-      parted "$DISK" mkpart primary "$fs_type" ${current_pos}MiB ${home_end}MiB
-      PART_ASSIGN+=("${DISK}${part_num}:/home")
-      current_pos=$home_end
-      ((part_num++))
-    fi
-    
-    # Root partition (rest of disk)
-    parted "$DISK" mkpart primary "$fs_type" ${current_pos}MiB 100%
-    PART_ASSIGN+=("${DISK}${part_num}:/")
+    PART_ASSIGN=("${DISK}1:/boot")
+    local part_num=2
   fi
   
-  partprobe "$DISK" 2>/dev/null || true
+  # Swap partition (if requested)
+  if [[ "$want_swap" == "Yes" ]]; then
+    local swap_size=$((disk_size_gb > 40 ? 4 : disk_size_gb / 10))
+    local swap_end=$((current_pos + swap_size * 1024))
+    parted "$DISK" mkpart primary linux-swap ${current_pos}MiB ${swap_end}MiB
+    PART_ASSIGN+=("${DISK}${part_num}:swap")
+    current_pos=$swap_end
+    ((part_num++))
+  fi
+  
+  # Root partition (remaining space)
+  parted "$DISK" mkpart primary "$fs_type" ${current_pos}MiB 100%
+  PART_ASSIGN+=("${DISK}${part_num}:/")
+  
+  # Wait for partitions to be recognized
   sleep 2
+  partprobe "$DISK"
+  sleep 1
   
-  echo "Auto partitioning complete with $fs_type filesystem!"
-  echo "Created partitions:"
-  for assignment in "${PART_ASSIGN[@]}"; do
-    local part="${assignment%%:*}"
-    local mount="${assignment#*:}"
-    echo "  $part -> $mount"
-  done
-  
-  read -rp "Press Enter to continue..."
+  log "Partitioning completed successfully"
 }
 
 # -------------------------
@@ -194,8 +139,8 @@ auto_partition_existing_partition() {
     fs_type=$(printf "ext4 (Recommended)\nbtrfs\nxfs\nf2fs" | eval "$FZF --prompt=\"Filesystem type > \" --header=\"Choose filesystem for $root_part\"") || return
     fs_type=$(echo "$fs_type" | awk '{print $1}')
     
-    echo "WARNING: This will erase all data on $root_part"
-    read -rp "Type 'FORMAT' to confirm: " confirm
+    printf "Will erase %s. Type 'FORMAT' to confirm: " "$root_part"
+    read -r confirm
     if [[ "$confirm" != "FORMAT" ]]; then
       echo "Cancelled."
       read -rp "Press Enter to continue..."
