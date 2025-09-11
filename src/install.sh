@@ -437,13 +437,25 @@ install_desktop_environment() {
   
   show_banner "Installing Desktop Environment: $DESKTOP"
   
+  # Copy dotfiles to chroot if available
+  if [[ -d "$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/dotfiles" ]]; then
+    cp -r "$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/dotfiles" /mnt/tmp/
+  fi
+  
   case "$DESKTOP" in
     "Hyprland")
       arch-chroot /mnt bash -c "
         pacman -S --noconfirm hyprland waybar wofi dunst kitty thunar firefox grim slurp wl-clipboard brightnessctl pamixer polkit-gnome xdg-desktop-portal-hyprland xdg-desktop-portal-wlr
         
-        mkdir -p /home/${USERNAME}/.config/hypr
-        cat > /home/${USERNAME}/.config/hypr/hyprland.conf <<'EOF'
+        mkdir -p /home/${USERNAME}/.config
+        
+        # Install Flamedots if available
+        if [ -d '/tmp/dotfiles/Flamedots' ]; then
+          cp -r /tmp/dotfiles/Flamedots/* /home/${USERNAME}/.config/
+        else
+          # Create basic Hyprland config
+          mkdir -p /home/${USERNAME}/.config/hypr
+          cat > /home/${USERNAME}/.config/hypr/hyprland.conf <<'EOF'
 monitor=,preferred,auto,auto
 exec-once = waybar
 exec-once = dunst
@@ -473,6 +485,8 @@ bind = SUPER, 2, workspace, 2
 bind = SUPER SHIFT, 1, movetoworkspace, 1
 bind = SUPER SHIFT, 2, movetoworkspace, 2
 EOF
+        fi
+        
         chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
       "
       ;;
