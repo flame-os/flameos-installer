@@ -294,7 +294,7 @@ configure_flameos_system() {
     pacman -S --noconfirm reflector
     
     # Create os-release
-    cat > /etc/os-release << "EOF"
+    cat > /etc/os-release <<EOF
 NAME="FlameOS"
 PRETTY_NAME="FlameOS"
 ID=flameos
@@ -310,29 +310,29 @@ EOF
     
     # Add FlameOS repository
     if ! grep -q "\[flameos-core\]" /etc/pacman.conf; then
-      cat >> /etc/pacman.conf << "EOF"
+      cat >> /etc/pacman.conf <<EOF
 
 [flameos-core]
 SigLevel = Optional DatabaseOptional
-Server = https://flame-os.github.io/core/$arch
+Server = https://flame-os.github.io/core/\$arch
 EOF
     fi
     
     # Configure GRUB theme script
-    cat > /etc/grub.d/05_debian_theme << "EOF"
+    cat > /etc/grub.d/05_debian_theme <<EOF
 #!/bin/bash
 
 SHARED_LOGO="/boot/grub/themes/shared/flameos.png"
 
-if [[ ! -f "$SHARED_LOGO" ]]; then
-    echo "Shared logo not found at $SHARED_LOGO"
+if [[ ! -f "\$SHARED_LOGO" ]]; then
+    echo "Shared logo not found at \$SHARED_LOGO"
     exit 1
 fi
 
 for theme_dir in /boot/grub/themes/*/; do
-    [[ "$theme_dir" == *"/shared/" ]] && continue
-    mkdir -p "${theme_dir}icons"
-    cp "$SHARED_LOGO" "${theme_dir}icons/flameos.png"
+    [[ "\$theme_dir" == *"/shared/" ]] && continue
+    mkdir -p "\${theme_dir}icons"
+    cp "\$SHARED_LOGO" "\${theme_dir}icons/flameos.png"
 done
 
 echo "Logo copied to all GRUB themes."
