@@ -452,6 +452,13 @@ install_desktop_environment() {
         # Install Flamedots if available
         if [ -d '/tmp/dotfiles/Flamedots' ]; then
           cp -r /tmp/dotfiles/Flamedots/* /home/${USERNAME}/.config/
+          
+          # Run dotfiles install script if it exists
+          if [ -f '/tmp/dotfiles/Flamedots/install.sh' ]; then
+            cd /tmp/dotfiles/Flamedots
+            chmod +x install.sh
+            ./install.sh
+          fi
         else
           # Create basic Hyprland config
           mkdir -p /home/${USERNAME}/.config/hypr

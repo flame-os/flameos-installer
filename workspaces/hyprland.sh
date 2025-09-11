@@ -34,6 +34,14 @@ install() {
   if [[ -n "$dotfiles" && -d "/tmp/dotfiles/$dotfiles" ]]; then
     log "Installing $dotfiles configuration..."
     cp -r "/tmp/dotfiles/$dotfiles/"* "/home/$USERNAME/.config/"
+    
+    # Run dotfiles install script if it exists
+    if [[ -f "/tmp/dotfiles/$dotfiles/install.sh" ]]; then
+      log "Running $dotfiles install script..."
+      cd "/tmp/dotfiles/$dotfiles"
+      chmod +x install.sh
+      ./install.sh
+    fi
   else
     log "Dotfiles not found, creating basic config..."
     mkdir -p "/home/$USERNAME/.config/hypr"
