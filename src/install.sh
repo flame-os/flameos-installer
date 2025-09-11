@@ -293,43 +293,65 @@ install_desktop_environment() {
   
   show_banner "Installing Desktop Environment: $DESKTOP"
   
-  # Copy desktop scripts to chroot
-  cp -r "$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/workspaces" /mnt/tmp/
-  
-  # Create desktop installation script
-  cat > /mnt/install_desktop.sh <<DESKTOP_SCRIPT
-#!/usr/bin/env bash
-set -euo pipefail
-
-USERNAME="${USERNAME:-user}"
-DESKTOP="${DESKTOP:-}"
-
-log() {
-  echo "\$(date): \$*" | tee -a /tmp/flameos-install.log
+  case "$DESKTOP" in
+    "Hyprland")
+      arch-chroot /mnt bash -c "
+        pacman -S --noconfirm hyprland waybar wofi dunst kitty thunar firefox grim slurp wl-clipboard brightnessctl pamixer polkit-gnome xdg-desktop-portal-hyprland xdg-desktop-portal-wlr
+        
+        mkdir -p /home/${USERNAME}/.config/hypr
+        cat > /home/${USERNAME}/.config/hypr/hyprland.conf <<'EOF'
+monitor=,preferred,auto,auto
+exec-once = waybar
+exec-once = dunst
+input {
+    kb_layout = us
+    follow_mouse = 1
+    sensitivity = 0
 }
-
-# Source the desktop script and install
-for script in /tmp/workspaces/*.sh; do
-  if [[ -f "\$script" ]]; then
-    source "\$script"
-    if [[ "\${name:-}" == "\$DESKTOP" ]]; then
-      log "Installing \$DESKTOP desktop environment..."
-      install
-      break
-    fi
-  fi
-done
-
-# Clean up
-rm -rf /tmp/workspaces
-DESKTOP_SCRIPT
-
-  chmod +x /mnt/install_desktop.sh
-  arch-chroot /mnt /install_desktop.sh || {
-    echo "Desktop environment installation failed!"
-    read -rp "Press Enter to continue..."
-  }
-  rm -f /mnt/install_desktop.sh
+general {
+    gaps_in = 5
+    gaps_out = 20
+    border_size = 2
+    col.active_border = rgba(33ccffee)
+    col.inactive_border = rgba(595959aa)
+    layout = dwindle
+}
+bind = SUPER, Q, exec, kitty
+bind = SUPER, C, killactive,
+bind = SUPER, E, exec, thunar
+bind = SUPER, R, exec, wofi --show drun
+bind = SUPER, left, movefocus, l
+bind = SUPER, right, movefocus, r
+bind = SUPER, up, movefocus, u
+bind = SUPER, down, movefocus, d
+bind = SUPER, 1, workspace, 1
+bind = SUPER, 2, workspace, 2
+bind = SUPER SHIFT, 1, movetoworkspace, 1
+bind = SUPER SHIFT, 2, movetoworkspace, 2
+EOF
+        chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
+      "
+      ;;
+    "KDE Plasma")
+      arch-chroot /mnt pacman -S --noconfirm plasma-meta kde-applications sddm
+      arch-chroot /mnt systemctl enable sddm
+      ;;
+    "GNOME")
+      arch-chroot /mnt pacman -S --noconfirm gnome gnome-extra gdm
+      arch-chroot /mnt systemctl enable gdm
+      ;;
+    "XFCE")
+      arch-chroot /mnt pacman -S --noconfirm xfce4 xfce4-goodies lightdm lightdm-gtk-greeter
+      arch-chroot /mnt systemctl enable lightdm
+      ;;
+    "i3")
+      arch-chroot /mnt pacman -S --noconfirm i3-wm i3status dmenu i3lock xorg-server lightdm
+      arch-chroot /mnt systemctl enable lightdm
+      ;;
+    "Sway")
+      arch-chroot /mnt pacman -S --noconfirm sway waybar wofi
+      ;;
+  esac
   
   log "Desktop environment installation completed"
 }
