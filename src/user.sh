@@ -281,6 +281,42 @@ audio_driver_step() {
 }
 
 # -------------------------
+# Additional Packages Step
+# -------------------------
+additional_packages_step() {
+  show_banner "Step: Additional Packages"
+  
+  if [[ -n "${ADDITIONAL_PACKAGES:-}" ]]; then
+    local pkg_count=$(echo "$ADDITIONAL_PACKAGES" | wc -l)
+    echo "Current selection: $pkg_count packages selected"
+  else
+    echo "Current selection: No additional packages"
+  fi
+  echo
+  
+  local choice
+  choice=$(printf "Select Additional Packages\nClear Selection\nGo Back" | eval "$FZF --prompt=\"Packages > \" --header=\"Choose action\"") || return 1
+  
+  case "$choice" in
+    "Select Additional Packages")
+      select_additional_packages
+      return 0
+      ;;
+    "Clear Selection")
+      ADDITIONAL_PACKAGES=""
+      log "Additional packages selection cleared"
+      return 0
+      ;;
+    "Go Back")
+      return 1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# -------------------------
 # Auto Detect Graphics
 # -------------------------
 auto_detect_graphics() {

@@ -45,7 +45,6 @@ summary_and_install_flow() {
         return 1
       fi
       format_and_mount_all || { log "Format and mount failed"; return 1; }
-      select_additional_packages
       install_base_system
       write_chroot_script_and_run
       install_bootloader

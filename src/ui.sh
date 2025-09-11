@@ -102,11 +102,18 @@ guided_installation() {
           step=7  # Go back to graphics driver
         fi
         ;;
-      9) # Summary & Install
+      9) # Additional Packages
+        if additional_packages_step; then
+          step=10
+        else
+          step=8  # Go back to audio driver
+        fi
+        ;;
+      10) # Summary & Install
         if summary_and_install_flow; then
           break  # Installation complete
         else
-          step=8  # Go back to audio driver
+          step=9  # Go back to additional packages
         fi
         ;;
       *) # Exit to main menu
@@ -121,7 +128,7 @@ advanced_mode() {
   
   while true; do
     local choice
-    choice=$(printf "Network Setup\nDisk Management\nUser Configuration\nSystem Configuration\nDesktop Environment\nGraphics Driver\nAudio Driver\nSummary and Install\nExit to Main Menu" | eval "$FZF --prompt=\"Advanced > \" --header=\"Choose configuration step\"") || return 0
+    choice=$(printf "Network Setup\nDisk Management\nUser Configuration\nSystem Configuration\nDesktop Environment\nGraphics Driver\nAudio Driver\nAdditional Packages\nSummary and Install\nExit to Main Menu" | eval "$FZF --prompt=\"Advanced > \" --header=\"Choose configuration step\"") || return 0
     
     case "$choice" in
       "Network Setup") network_setup_step || true ;;
@@ -131,6 +138,7 @@ advanced_mode() {
       "Desktop Environment") desktop_selection_step || true ;;
       "Graphics Driver") graphics_driver_step || true ;;
       "Audio Driver") audio_driver_step || true ;;
+      "Additional Packages") additional_packages_step || true ;;
       "Summary and Install") summary_and_install_flow || true ;;
       "Exit to Main Menu") return 0 ;;
       *) return 0 ;;
