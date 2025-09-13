@@ -74,46 +74,67 @@ guided_installation() {
           step=3  # Go back to user
         fi
         ;;
-      5) # Desktop Environment
-        if desktop_selection_step; then
+      5) # Kernel Selection
+        if kernel_selection_step; then
           step=6
         else
           step=4  # Go back to system config
         fi
         ;;
-      6) # Desktop Environment
-        if desktop_selection_step; then
+      6) # Network Manager
+        if network_manager_step; then
           step=7
         else
-          step=5  # Go back to system config
+          step=5  # Go back to kernel
         fi
         ;;
-      7) # Graphics Driver
-        if graphics_driver_step; then
+      7) # Desktop Environment
+        if desktop_selection_step; then
           step=8
         else
-          step=6  # Go back to desktop selection
+          step=6  # Go back to network manager
         fi
         ;;
-      8) # Audio Driver
-        if audio_driver_step; then
+      8) # Display Manager
+        if display_manager_step; then
           step=9
         else
-          step=7  # Go back to graphics driver
+          step=7  # Go back to desktop
         fi
         ;;
-      9) # Additional Packages
-        if additional_packages_step; then
+      9) # Power Manager
+        if power_manager_step; then
           step=10
         else
-          step=8  # Go back to audio driver
+          step=8  # Go back to display manager
         fi
         ;;
-      10) # Summary & Install
+      10) # Graphics Driver
+        if graphics_driver_step; then
+          step=11
+        else
+          step=9  # Go back to power manager
+        fi
+        ;;
+      11) # Audio Driver
+        if audio_driver_step; then
+          step=12
+        else
+          step=10  # Go back to graphics driver
+        fi
+        ;;
+      12) # Additional Packages
+        if additional_packages_step; then
+          step=13
+        else
+          step=11  # Go back to audio driver
+        fi
+        ;;
+      13) # Summary & Install
         if summary_and_install_flow; then
           break  # Installation complete
         else
-          step=9  # Go back to additional packages
+          step=12  # Go back to additional packages
         fi
         ;;
       *) # Exit to main menu
@@ -128,14 +149,18 @@ advanced_mode() {
   
   while true; do
     local choice
-    choice=$(printf "Network Setup\nDisk Management\nUser Configuration\nSystem Configuration\nDesktop Environment\nGraphics Driver\nAudio Driver\nAdditional Packages\nSummary and Install\nExit to Main Menu" | eval "$FZF --prompt=\"Advanced > \" --header=\"Choose configuration step\"") || return 0
+    choice=$(printf "Network Setup\nDisk Management\nUser Configuration\nSystem Configuration\nKernel Selection\nNetwork Manager\nDesktop Environment\nDisplay Manager\nPower Manager\nGraphics Driver\nAudio Driver\nAdditional Packages\nSummary and Install\nExit to Main Menu" | eval "$FZF --prompt=\"Advanced > \" --header=\"Choose configuration step\"") || return 0
     
     case "$choice" in
       "Network Setup") network_setup_step || true ;;
       "Disk Management") select_disk_step || true ;;
       "User Configuration") user_config_step || true ;;
       "System Configuration") system_config_step || true ;;
+      "Kernel Selection") kernel_selection_step || true ;;
+      "Network Manager") network_manager_step || true ;;
       "Desktop Environment") desktop_selection_step || true ;;
+      "Display Manager") display_manager_step || true ;;
+      "Power Manager") power_manager_step || true ;;
       "Graphics Driver") graphics_driver_step || true ;;
       "Audio Driver") audio_driver_step || true ;;
       "Additional Packages") additional_packages_step || true ;;

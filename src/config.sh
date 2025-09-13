@@ -23,6 +23,10 @@ GRAPHICS_PACKAGES=""
 ADDITIONAL_PACKAGES=""
 MIRROR_REGION=""
 AUDIO_DRIVER=""
+NETWORK_MANAGER=""
+KERNEL=""
+POWER_MANAGER=""
+DISPLAY_MANAGER=""
 
 # -------------------------
 # Configuration / styling
@@ -107,4 +111,47 @@ get_audio_packages() {
       echo "pulseaudio pulseaudio-alsa pavucontrol"
       ;;
   esac
+}
+
+# -------------------------
+# Network Managers
+# -------------------------
+get_available_network_managers() {
+  printf "NetworkManager (Default)\niwctl"
+}
+
+# -------------------------
+# Kernels
+# -------------------------
+get_available_kernels() {
+  printf "linux\nlinux-zen\nlinux-lts"
+}
+
+# -------------------------
+# Power Managers
+# -------------------------
+get_available_power_managers() {
+  printf "power-profiles-daemon\ntlp"
+}
+
+get_power_packages() {
+  local manager="$1"
+  case "$manager" in
+    "power-profiles-daemon")
+      echo "power-profiles-daemon"
+      ;;
+    "tlp")
+      echo "tlp tlp-rdw"
+      ;;
+    *)
+      echo "power-profiles-daemon"
+      ;;
+  esac
+}
+
+# -------------------------
+# Display Managers
+# -------------------------
+get_available_display_managers() {
+  printf "sddm\nlightdm\ngdm"
 }

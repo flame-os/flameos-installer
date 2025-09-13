@@ -18,9 +18,6 @@ install() {
     brightnessctl pamixer
     polkit-gnome xdg-desktop-portal-hyprland
     xdg-desktop-portal-wlr
-    sddm
-    bluez bluez-utils
-    networkmanager network-manager-applet
     git nano neovim
   )
   
@@ -37,10 +34,7 @@ install() {
   # Set proper ownership
   chown -R "$USERNAME:$USERNAME" "/home/$USERNAME"
   
-  # Enable Systemd services
-  systemctl enable sddm
-  systemctl enable NetworkManager
-  systemctl enable bluetooth
+  # Clone dotfiles and setup
   git clone https://github.com/aislxflames/flamedots "/home/$USERNAME/flamedots"
   sed -i '$a exec-once = ~/setup-hyprland.sh' /home/$USERNAME/.config/hypr/hyprland.conf
   

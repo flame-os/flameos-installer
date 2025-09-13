@@ -339,3 +339,63 @@ auto_detect_graphics() {
   echo "Detected graphics: $GRAPHICS_PACKAGES"
   read -rp "Press Enter to continue..."
 }
+
+# -------------------------
+# Kernel Selection Step
+# -------------------------
+kernel_selection_step() {
+  show_banner "Step: Kernel Selection"
+  
+  local kernel
+  kernel=$(get_available_kernels | eval "$FZF --prompt=\"Kernel > \" --header=\"Select Linux kernel\"") || return 1
+  
+  KERNEL="$kernel"
+  log "Selected kernel: $KERNEL"
+  
+  return 0
+}
+
+# -------------------------
+# Network Manager Step
+# -------------------------
+network_manager_step() {
+  show_banner "Step: Network Manager"
+  
+  local manager
+  manager=$(get_available_network_managers | eval "$FZF --prompt=\"Network > \" --header=\"Select network manager\"") || return 1
+  
+  NETWORK_MANAGER="$manager"
+  log "Selected network manager: $NETWORK_MANAGER"
+  
+  return 0
+}
+
+# -------------------------
+# Display Manager Step
+# -------------------------
+display_manager_step() {
+  show_banner "Step: Display Manager"
+  
+  local manager
+  manager=$(get_available_display_managers | eval "$FZF --prompt=\"Display > \" --header=\"Select display manager\"") || return 1
+  
+  DISPLAY_MANAGER="$manager"
+  log "Selected display manager: $DISPLAY_MANAGER"
+  
+  return 0
+}
+
+# -------------------------
+# Power Manager Step
+# -------------------------
+power_manager_step() {
+  show_banner "Step: Power Manager"
+  
+  local manager
+  manager=$(get_available_power_managers | eval "$FZF --prompt=\"Power > \" --header=\"Select power manager\"") || return 1
+  
+  POWER_MANAGER="$manager"
+  log "Selected power manager: $POWER_MANAGER"
+  
+  return 0
+}

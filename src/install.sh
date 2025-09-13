@@ -143,13 +143,30 @@ install_base_system() {
   show_banner "Installing System - Base Packages"
   log "Pacstrapping base system onto /mnt"
   
+  # Use selected kernel or default to linux
+  local kernel="${KERNEL:-linux}"
+  
+  # Use selected network manager or default to NetworkManager
+  local network_pkg=""
+  case "${NETWORK_MANAGER:-NetworkManager (Default)}" in
+    "NetworkManager (Default)") network_pkg="networkmanager" ;;
+    "iwctl") network_pkg="iwd" ;;
+    *) network_pkg="networkmanager" ;;
+  esac
+  
   # Essential packages for a working system
-  local base_packages="base base-devel linux linux-firmware networkmanager grub efibootmgr dosfstools mtools"
+  local base_packages="base base-devel $kernel linux-firmware $network_pkg grub efibootmgr dosfstools mtools bluez bluez-utils"
   
   # Add graphics packages if selected
   local all_packages="$base_packages"
   if [[ -n "${GRAPHICS_PACKAGES:-}" ]]; then
     all_packages="$all_packages $GRAPHICS_PACKAGES"
+  fi
+  
+  # Add power manager packages
+  if [[ -n "${POWER_MANAGER:-}" ]]; then
+    local power_pkgs=$(get_power_packages "$POWER_MANAGER")
+    all_packages="$all_packages $power_pkgs"
   fi
   
   # Add additional packages if selected
@@ -162,7 +179,7 @@ install_base_system() {
   # Install all packages
   pacstrap /mnt $all_packages --noconfirm --needed || {
     echo "Pacstrap failed! Retrying with basic packages..."
-    pacstrap /mnt base linux linux-firmware grub --noconfirm --needed || {
+    pacstrap /mnt base $kernel linux-firmware grub --noconfirm --needed || {
       echo "Critical: Base system installation failed!"
       read -rp "Press Enter to continue anyway..."
     }
@@ -458,8 +475,39 @@ install_desktop_environment() {
   
   if [[ -n "$desktop_script" && -f "/mnt/tmp/workspaces/$desktop_script" ]]; then
     log "Running $desktop_script inside chroot"
+    
+    # Install display manager packages
+    local dm_pkg=""
+    case "${DISPLAY_MANAGER:-sddm}" in
+      "sddm") dm_pkg="sddm" ;;
+      "lightdm") dm_pkg="lightdm lightdm-gtk-greeter" ;;
+      "gdm") dm_pkg="gdm" ;;
+    esac
+    
     arch-chroot /mnt bash -c "
       export USERNAME='${USERNAME}'
+      export DISPLAY_MANAGER='${DISPLAY_MANAGER:-sddm}'
+      
+      # Install display manager
+      pacman -S --noconfirm $dm_pkg
+      
+      # Enable services
+      systemctl enable ${DISPLAY_MANAGER:-sddm}
+      systemctl enable bluetooth
+      
+      # Enable network manager
+      case '${NETWORK_MANAGER:-NetworkManager (Default)}' in
+        'NetworkManager (Default)') systemctl enable NetworkManager ;;
+        'iwctl') systemctl enable iwd ;;
+      esac
+      
+      # Enable power manager
+      case '${POWER_MANAGER:-}' in
+        'power-profiles-daemon') systemctl enable power-profiles-daemon ;;
+        'tlp') systemctl enable tlp ;;
+      esac
+      
+      # Run workspace script
       cd /tmp/workspaces
       chmod +x '$desktop_script'
       ./'$desktop_script'
