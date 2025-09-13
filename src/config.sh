@@ -50,13 +50,43 @@ get_available_desktops() {
   local desktop_dir="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/workspaces"
   local desktops=()
   
+  if [[ ! -d "$desktop_dir" ]]; then
+    echo "Hyprland"
+    echo "KDE Plasma" 
+    echo "GNOME"
+    echo "XFCE"
+    echo "i3"
+    echo "Sway"
+    echo "Minimal"
+    return
+  fi
+  
   for script in "$desktop_dir"/*.sh; do
     if [[ -f "$script" ]]; then
-      # Extract name without sourcing the script to avoid running install function
-      local name=$(grep '^name=' "$script" | head -1 | cut -d'"' -f2)
-      [[ -n "$name" ]] && desktops+=("$name")
+      # Extract name from the script more reliably
+      local name=$(grep '^name=' "$script" | head -1 | sed 's/name=//g' | sed 's/"//g' | sed "s/'//g")
+      if [[ -n "$name" ]]; then
+        desktops+=("$name")
+      else
+        # Fallback: use filename without extension
+        local basename=$(basename "$script" .sh)
+        case "$basename" in
+          "hyprland") desktops+=("Hyprland") ;;
+          "kde") desktops+=("KDE Plasma") ;;
+          "gnome") desktops+=("GNOME") ;;
+          "xfce") desktops+=("XFCE") ;;
+          "i3") desktops+=("i3") ;;
+          "sway") desktops+=("Sway") ;;
+          "minimal") desktops+=("Minimal") ;;
+        esac
+      fi
     fi
   done
+  
+  # If no desktops found, provide defaults
+  if [[ ${#desktops[@]} -eq 0 ]]; then
+    desktops=("Hyprland" "KDE Plasma" "GNOME" "XFCE" "i3" "Sway" "Minimal")
+  fi
   
   printf "%s\n" "${desktops[@]}"
 }

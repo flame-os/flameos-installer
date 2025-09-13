@@ -7,93 +7,165 @@
 # Auto Partition - Erase Disk
 # -------------------------
 auto_partition_erase_disk() {
-  show_banner "Auto Partition - Erase Disk"
+  clear
+  echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+  echo "║                            AUTOMATIC PARTITIONING                           ║"
+  echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+  echo
+  echo "⚠️  WARNING: This will INSTANTLY erase ALL data on the selected disk!"
+  echo
   
   local all_disks
   all_disks=$(lsblk -d -o NAME,SIZE,MODEL | awk 'NR>1 && $1!~/loop/ {printf "/dev/%s\t%s\t%s\n", $1, $2, $3}')
   
-  DISK=$(printf "%s\nCancel" "$all_disks" | eval "$FZF --prompt=\"Select disk to erase > \" --header=\"WARNING: This will erase ALL data on the selected disk\"") || return
+  echo "Available disks:"
+  echo "$all_disks" | while IFS=$'\t' read -r disk size model; do
+    echo "  💾 $disk ($size) - $model"
+  done
+  echo
   
-  if [[ "$DISK" == "Cancel" || -z "$DISK" ]]; then
+  DISK=$(printf "%s\n❌ Cancel" "$all_disks" | eval "$FZF --prompt=\"💾 Select Disk › \" --header=\"Choose disk to partition automatically\" --border --height=15") || return
+  
+  if [[ "$DISK" == "❌ Cancel" || -z "$DISK" ]]; then
     return
   fi
   
   DISK=$(echo "$DISK" | awk '{print $1}')
   
-  # Ask for swap partition
-  local want_swap
-  want_swap=$(printf "Yes\nNo" | eval "$FZF --prompt=\"Create swap partition? > \" --header=\"Do you want a swap partition?\"") || return
-  
-  # Auto configuration for other options
-  local want_home="No"
-  local fs_type="ext4"
-  
-  echo "Auto Configuration:"
-  echo "  Disk: $DISK"
-  echo "  Filesystem: $fs_type"
-  echo "  Swap: $want_swap"
-  echo "  Separate /home: $want_home"
+  clear
+  echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+  echo "║                              BOOT CONFIGURATION                              ║"
+  echo "╚══════════════════════════════════════════════════════════════════════════════╝"
   echo
-  printf "Will erase %s. Type 'ERASE' to confirm: " "$DISK"
-  read -r confirm
-  if [[ "$confirm" != "ERASE" ]]; then
-    echo "Cancelled."
-    read -rp "Press Enter to continue..."
-    return
-  fi
+  echo "Selected disk: $DISK"
+  echo
+  
+  # Select boot type with better UI
+  local boot_type
+  boot_type=$(printf "🔧 EFI (UEFI) - Modern systems\n🔧 MBR (Legacy BIOS) - Older systems" | eval "$FZF --prompt=\"⚙️  Boot Type › \" --header=\"Select boot type for your system\" --border --height=10") || return
+  boot_type=$(echo "$boot_type" | awk '{print $2" "$3}')
+  
+  # Ask for swap partition with better UI
+  local want_swap
+  want_swap=$(printf "✅ Yes - Create swap partition\n❌ No - Skip swap partition" | eval "$FZF --prompt=\"💾 Swap › \" --header=\"Do you want a swap partition for hibernation?\" --border --height=10") || return
+  want_swap=$(echo "$want_swap" | awk '{print $1}')
+  
+  clear
+  echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+  echo "║                           PARTITIONING IN PROGRESS                          ║"
+  echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+  echo
+  echo "🔧 Configuration:"
+  echo "   Disk: $DISK"
+  echo "   Boot: $boot_type"
+  echo "   Swap: $want_swap"
+  echo "   Filesystem: ext4"
+  echo
+  echo "🚀 Starting automatic partitioning..."
+  sleep 1
+  
+  # Unmount any mounted partitions on this disk
+  echo "📤 Unmounting partitions..."
+  for partition in $(lsblk -lnp -o NAME "$DISK" | grep -E "${DISK}[0-9]+"); do
+    if mountpoint -q "$partition" 2>/dev/null || grep -q "$partition" /proc/mounts; then
+      echo "   Unmounting $partition..."
+      umount "$partition" 2>/dev/null || true
+    fi
+  done
   
   # Wipe partition table
+  echo "🧹 Wiping partition table..."
   wipefs -a "$DISK" 2>/dev/null || true
+  dd if=/dev/zero of="$DISK" bs=1M count=10 2>/dev/null || true
   
   # Calculate partition sizes
   local disk_size_gb=$(lsblk -d -o SIZE "$DISK" | tail -n1 | sed 's/[^0-9.]//g' | cut -d. -f1)
   local current_pos=1
   
-  # Create partitions automatically
-  if [[ -d /sys/firmware/efi ]]; then
-    # UEFI system
-    parted "$DISK" mklabel gpt
+  # Create partitions automatically based on boot type
+  PART_ASSIGN=()
+  
+  if [[ "$boot_type" == "EFI (UEFI)" ]]; then
+    echo "📋 Creating GPT partition table..."
+    parted "$DISK" mklabel gpt || { echo "❌ Failed to create GPT table"; return 1; }
     
-    # EFI partition (512MB)
-    parted "$DISK" mkpart primary fat32 ${current_pos}MiB 513MiB
-    parted "$DISK" set 1 esp on
-    current_pos=513
+    echo "🔧 Creating EFI boot partition (1GB)..."
+    parted "$DISK" mkpart primary fat32 ${current_pos}MiB 1025MiB || { echo "❌ Failed to create EFI partition"; return 1; }
+    parted "$DISK" set 1 esp on || { echo "❌ Failed to set ESP flag"; return 1; }
+    current_pos=1025
     
-    PART_ASSIGN=("${DISK}1:/boot/efi")
+    PART_ASSIGN+=("${DISK}1:/boot/efi")
     local part_num=2
   else
-    # BIOS system
-    parted "$DISK" mklabel msdos
+    echo "📋 Creating MBR partition table..."
+    parted "$DISK" mklabel msdos || { echo "❌ Failed to create MBR table"; return 1; }
     
-    # Boot partition (1GB)
-    parted "$DISK" mkpart primary ext4 ${current_pos}MiB $((current_pos + 1024))MiB
-    parted "$DISK" set 1 boot on
-    current_pos=$((current_pos + 1024))
+    echo "🔧 Creating boot partition (1GB)..."
+    parted "$DISK" mkpart primary ext4 ${current_pos}MiB 1025MiB || { echo "❌ Failed to create boot partition"; return 1; }
+    parted "$DISK" set 1 boot on || { echo "❌ Failed to set boot flag"; return 1; }
+    current_pos=1025
     
-    PART_ASSIGN=("${DISK}1:/boot")
+    PART_ASSIGN+=("${DISK}1:/boot")
     local part_num=2
   fi
   
   # Swap partition (if requested)
-  if [[ "$want_swap" == "Yes" ]]; then
+  if [[ "$want_swap" == "✅" ]]; then
+    echo "💾 Creating swap partition..."
     local swap_size=$((disk_size_gb > 40 ? 4 : disk_size_gb / 10))
     local swap_end=$((current_pos + swap_size * 1024))
-    parted "$DISK" mkpart primary linux-swap ${current_pos}MiB ${swap_end}MiB
+    parted "$DISK" mkpart primary linux-swap ${current_pos}MiB ${swap_end}MiB || { echo "❌ Failed to create swap"; return 1; }
     PART_ASSIGN+=("${DISK}${part_num}:swap")
     current_pos=$swap_end
     ((part_num++))
   fi
   
   # Root partition (remaining space)
-  parted "$DISK" mkpart primary "$fs_type" ${current_pos}MiB 100%
+  echo "🏠 Creating root partition..."
+  parted "$DISK" mkpart primary ext4 ${current_pos}MiB 100% || { echo "❌ Failed to create root partition"; return 1; }
   PART_ASSIGN+=("${DISK}${part_num}:/")
   
   # Wait for partitions to be recognized
+  echo "⏳ Waiting for system to recognize partitions..."
   sleep 2
   partprobe "$DISK"
   sleep 1
   
-  log "Partitioning completed successfully"
+  # Set partition variables for validation
+  ROOT_PART="${DISK}${part_num}"
+  if [[ "$boot_type" == "EFI (UEFI)" ]]; then
+    EFI_PART="${DISK}1"
+  fi
+  if [[ "$want_swap" == "✅" ]]; then
+    SWAP_PART="${DISK}$((part_num-1))"
+  fi
+  
+  clear
+  echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+  echo "║                          PARTITIONING COMPLETED!                            ║"
+  echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+  echo
+  echo "✅ Automatic partitioning completed successfully!"
+  echo
+  echo "📋 Created partitions:"
+  for assignment in "${PART_ASSIGN[@]}"; do
+    local part="${assignment%%:*}"
+    local mount="${assignment#*:}"
+    case "$mount" in
+      "/") echo "   🏠 $part → $mount (Root filesystem)" ;;
+      "/boot/efi") echo "   🔧 $part → $mount (EFI boot partition)" ;;
+      "/boot") echo "   🔧 $part → $mount (Boot partition)" ;;
+      "swap") echo "   💾 $part → $mount (Swap partition)" ;;
+      *) echo "   📁 $part → $mount" ;;
+    esac
+  done
+  echo
+  echo "🎉 Your disk is now ready for FlameOS installation!"
+  echo "   You can proceed to 'Continue Installation' from the main menu."
+  
+  log "Auto partitioning completed successfully"
+  echo
+  read -rp "Press Enter to return to main menu..."
 }
 
 # -------------------------
@@ -147,6 +219,12 @@ auto_partition_existing_partition() {
       return
     fi
     
+    # Unmount partition if mounted
+    if mountpoint -q "$root_part" 2>/dev/null || grep -q "$root_part" /proc/mounts; then
+      echo "Unmounting $root_part..."
+      umount "$root_part" 2>/dev/null || true
+    fi
+    
     # Format the partition
     case "$fs_type" in
       "ext4") mkfs.ext4 -F "$root_part" ;;
@@ -156,52 +234,15 @@ auto_partition_existing_partition() {
     esac
   fi
   
-  # Set up basic assignments
+  # Set up automatic assignments - only root partition
   PART_ASSIGN=()
   PART_ASSIGN+=("$root_part:/")
-  
-  # Check if EFI system and look for EFI partition
-  if [[ -d /sys/firmware/efi ]]; then
-    echo "UEFI system detected. Looking for EFI partition..."
-    local efi_parts
-    efi_parts=$(printf "%b" "$all_parts" | grep -i "fat32\|vfat" | head -n5)
-    
-    if [[ -n "$efi_parts" ]]; then
-      local efi_part
-      efi_part=$(printf "%s\nSkip (no /boot/efi)" "$efi_parts" | eval "$FZF --prompt=\"Select EFI partition > \" --header=\"Choose EFI partition for /boot/efi\"") || return
-      
-      if [[ "$efi_part" != "Skip (no /boot/efi)" && -n "$efi_part" ]]; then
-        local efi_path=$(echo "$efi_part" | awk '{print $1}')
-        PART_ASSIGN+=("$efi_path:/boot/efi")
-      fi
-    fi
-    
-    # Look for /boot partition
-    echo "Looking for /boot partition..."
-    local boot_parts
-    boot_parts=$(printf "%b" "$all_parts" | grep -E "ext[234]|xfs|btrfs" | head -n10)
-    
-    if [[ -n "$boot_parts" ]]; then
-      local boot_part
-      boot_part=$(printf "%s\nSkip (no /boot)" "$boot_parts" | eval "$FZF --prompt=\"Select /boot partition > \" --header=\"Choose partition for /boot (recommended for UEFI)\"") || return
-      
-      if [[ "$boot_part" != "Skip (no /boot)" && -n "$boot_part" ]]; then
-        local boot_path=$(echo "$boot_part" | awk '{print $1}')
-        # Make sure it's not the same as root
-        if [[ "$boot_path" != "$root_part" ]]; then
-          PART_ASSIGN+=("$boot_path:/boot")
-        fi
-      fi
-    fi
-  fi
+  ROOT_PART="$root_part"
   
   echo "Auto partition setup complete!"
-  echo "Assignments:"
-  for assignment in "${PART_ASSIGN[@]}"; do
-    local part="${assignment%%:*}"
-    local mount="${assignment#*:}"
-    echo "  $part -> $mount"
-  done
+  echo "Using existing partition: $root_part -> /"
+  echo
+  echo "Note: Boot partition will be handled automatically during installation"
   
   read -rp "Press Enter to continue..."
 }
@@ -212,6 +253,8 @@ auto_partition_existing_partition() {
 validate_partition_assignments() {
   # Check for required root partition
   local has_root=false
+  local has_boot=false
+  
   for a in "${PART_ASSIGN[@]}"; do
     local m="${a#*:}"
     if [[ "$m" == "/" ]]; then
@@ -219,6 +262,9 @@ validate_partition_assignments() {
       ROOT_PART="${a%%:*}"
     elif [[ "$m" == "/boot/efi" ]]; then
       EFI_PART="${a%%:*}"
+      has_boot=true
+    elif [[ "$m" == "/boot" ]]; then
+      has_boot=true
     elif [[ "$m" == "swap" ]]; then
       SWAP_PART="${a%%:*}"
     elif [[ "$m" == "/home" ]]; then
@@ -232,18 +278,14 @@ validate_partition_assignments() {
     return 1
   fi
 
-  # Check for EFI system
-  if [[ -d /sys/firmware/efi ]] && [[ -z "$EFI_PART" ]]; then
-    echo "WARNING: UEFI system detected but no /boot/efi partition assigned."
-    echo "You may need a /boot/efi partition for proper booting."
-    local confirm
-    confirm=$(printf "Continue anyway\nGo back to assign /boot/efi partition" | eval "$FZF --prompt=\"Warning > \" --header=\"UEFI boot partition missing\"") || return 1
-    if [[ "$confirm" == "Go back to assign /boot/efi partition" ]]; then
-      return 1
-    fi
-  fi
-
-  echo "Partition assignments validated successfully!"
+  echo "✓ Partition assignments validated successfully!"
+  echo "Current assignments:"
+  for assignment in "${PART_ASSIGN[@]}"; do
+    local part="${assignment%%:*}"
+    local mount="${assignment#*:}"
+    echo "  $part -> $mount"
+  done
+  echo
   echo "Root: ${ROOT_PART:-none}"
   echo "EFI: ${EFI_PART:-none}"
   echo "Swap: ${SWAP_PART:-none}"

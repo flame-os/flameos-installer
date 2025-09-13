@@ -174,6 +174,7 @@ manage_single_disk() {
 
     display+="\n=== Actions ===\n"
     display+="Create New Partition\n"
+    display+="Delete All Partitions\n"
     display+="Open Partition Editor (cfdisk)\n"
     display+="Go Back\n"
 
@@ -193,6 +194,9 @@ manage_single_disk() {
     case "$choice" in
       "Create New Partition")
         create_partition_interactive
+        ;;
+      "Delete All Partitions")
+        delete_all_partitions
         ;;
       "Open Partition Editor (cfdisk)")
         echo "Opening cfdisk for $DISK..."
@@ -391,5 +395,49 @@ delete_specific_partition() {
   else
     echo "Deletion cancelled."
   fi
+  read -rp "Press Enter to continue..."
+}
+
+# -------------------------
+# Delete All Partitions
+# -------------------------
+delete_all_partitions() {
+  echo "WARNING: This will delete ALL partitions on $DISK"
+  echo "All data will be permanently lost!"
+  echo
+  printf "Type 'DELETE ALL' to confirm: "
+  read -r confirm
+  
+  if [[ "$confirm" == "DELETE ALL" ]]; then
+    # Unmount any mounted partitions
+    echo "Unmounting partitions..."
+    for partition in $(lsblk -lnp -o NAME "$DISK" | grep -E "${DISK}[0-9]+"); do
+      if mountpoint -q "$partition" 2>/dev/null || grep -q "$partition" /proc/mounts; then
+        echo "Unmounting $partition..."
+        umount "$partition" 2>/dev/null || true
+      fi
+    done
+    
+    # Wipe partition table
+    echo "Wiping partition table..."
+    wipefs -a "$DISK" 2>/dev/null || true
+    dd if=/dev/zero of="$DISK" bs=1M count=10 2>/dev/null || true
+    
+    # Clear all partition assignments for this disk
+    local new_assignments=()
+    for assignment in "${PART_ASSIGN[@]}"; do
+      local part="${assignment%%:*}"
+      if [[ ! "$part" =~ ^${DISK}[0-9]+ ]]; then
+        new_assignments+=("$assignment")
+      fi
+    done
+    PART_ASSIGN=("${new_assignments[@]}")
+    
+    echo "✓ All partitions deleted from $DISK"
+    log "Deleted all partitions from $DISK"
+  else
+    echo "Deletion cancelled."
+  fi
+  
   read -rp "Press Enter to continue..."
 }

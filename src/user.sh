@@ -220,41 +220,72 @@ set_mirror_region() {
   
   # Get available countries from reflector and clean them up
   local countries
-  countries=$(reflector --list-countries 2>/dev/null | grep -E "^[A-Z]" | awk '{$1=""; print $0}' | sed 's/^ *//' | sort | uniq) || {
+  countries=$(reflector --list-countries 2>/dev/null | tail -n +2 | awk -F'\t' '{print $2}' | sort | uniq | grep -v '^$') || {
     echo "Failed to fetch countries, using fallback list"
-    countries="United States\nGermany\nFrance\nUnited Kingdom\nCanada\nAustralia\nJapan\nChina\nIndia\nNetherlands"
+    countries="United States\nGermany\nFrance\nUnited Kingdom\nCanada\nAustralia\nJapan\nChina\nIndia\nNetherlands\nSweden\nNorway\nItaly\nSpain\nBrazil\nRussia\nSouth Korea\nSingapore"
   }
   
   # Add Worldwide option at the top
   local regions="Worldwide"$'\n'"$countries"
   
+  echo
+  echo "═══════════════════════════════════════════════════════════"
+  echo "                    MIRROR CONFIGURATION"
+  echo "═══════════════════════════════════════════════════════════"
   echo "Current selection: ${MIRROR_REGION:-None}"
-  echo "Select mirror regions (use Tab to select multiple, Enter to confirm):"
+  echo
+  echo "Select mirror regions for faster downloads:"
+  echo "• Use Tab to select multiple countries"
+  echo "• Use Enter to confirm selection"
+  echo "• Choose countries closest to your location"
   echo
   
   local selected
-  selected=$(printf "%s" "$regions" | eval "$FZF --multi --prompt=\"Mirrors > \" --header=\"Select one or more mirror regions (Tab=select, Enter=confirm)\"") || return
+  selected=$(printf "%s" "$regions" | eval "$FZF --multi --prompt=\"🌍 Mirrors › \" --header=\"Select one or more mirror regions (Tab=select, Enter=confirm)\" --border --height=20") || return
   
   # Convert newlines to comma-separated for storage
   MIRROR_REGION=$(echo "$selected" | tr '\n' ',')
   
+  echo
+  echo "✓ Mirror regions configured: $MIRROR_REGION"
   log "Mirror regions set to: $MIRROR_REGION"
+  sleep 1
 }
 
 # -------------------------
 # Desktop Environment Step
 # -------------------------
 desktop_selection_step() {
-  show_banner "Step: Desktop Environment"
-  
+  clear
+  echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+  echo "║                           DESKTOP ENVIRONMENT                               ║"
+  echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+  echo
   echo "Current selection: ${DESKTOP:-not set}"
+  echo
+  echo "Available desktop environments:"
+  get_available_desktops | while read -r desktop; do
+    case "$desktop" in
+      "Hyprland") echo "  🪟 $desktop - Modern Wayland compositor with tiling" ;;
+      "KDE Plasma") echo "  🖥️  $desktop - Full-featured desktop environment" ;;
+      "GNOME") echo "  🎨 $desktop - Modern desktop with Wayland support" ;;
+      "XFCE") echo "  🪶 $desktop - Lightweight and customizable" ;;
+      "i3") echo "  ⚡ $desktop - Tiling window manager for X11" ;;
+      "Sway") echo "  🌊 $desktop - i3-compatible Wayland compositor" ;;
+      "Minimal") echo "  📦 $desktop - No desktop environment (server/custom)" ;;
+      *) echo "  🖥️  $desktop" ;;
+    esac
+  done
   echo
   
   local choice
-  choice=$(get_available_desktops | eval "$FZF --prompt=\"Desktop > \" --header=\"Choose desktop environment\"") || return 1
+  choice=$(get_available_desktops | eval "$FZF --prompt=\"🖥️  Desktop › \" --header=\"Choose your desktop environment\" --border --height=15") || return 1
   
   DESKTOP="$choice"
+  echo
+  echo "✅ Desktop environment set to: $DESKTOP"
   log "Desktop environment set to: $DESKTOP"
+  sleep 1
   
   return 0
 }
