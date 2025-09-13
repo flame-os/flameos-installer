@@ -20,75 +20,14 @@ configure_flameos_system() {
   if [[ -n "${MIRROR_REGION:-}" && "$MIRROR_REGION" != "Worldwide" ]]; then
     log "Configuring mirrors for regions: $MIRROR_REGION"
     
-    # Convert comma-separated regions to array
-    IFS=',' read -ra regions <<< "$MIRROR_REGION"
-    local countries=""
+    # Convert comma-separated regions to reflector format
+    local countries="${MIRROR_REGION//,/ }"
     
-    for region in "${regions[@]}"; do
-      case "$region" in
-        "United States") countries="$countries,United States" ;;
-        "Canada") countries="$countries,Canada" ;;
-        "Mexico") countries="$countries,Mexico" ;;
-        "Brazil") countries="$countries,Brazil" ;;
-        "Argentina") countries="$countries,Argentina" ;;
-        "Chile") countries="$countries,Chile" ;;
-        "United Kingdom") countries="$countries,United Kingdom" ;;
-        "Ireland") countries="$countries,Ireland" ;;
-        "Germany") countries="$countries,Germany" ;;
-        "France") countries="$countries,France" ;;
-        "Italy") countries="$countries,Italy" ;;
-        "Spain") countries="$countries,Spain" ;;
-        "Portugal") countries="$countries,Portugal" ;;
-        "Netherlands") countries="$countries,Netherlands" ;;
-        "Belgium") countries="$countries,Belgium" ;;
-        "Switzerland") countries="$countries,Switzerland" ;;
-        "Austria") countries="$countries,Austria" ;;
-        "Sweden") countries="$countries,Sweden" ;;
-        "Norway") countries="$countries,Norway" ;;
-        "Denmark") countries="$countries,Denmark" ;;
-        "Finland") countries="$countries,Finland" ;;
-        "Poland") countries="$countries,Poland" ;;
-        "Czech Republic") countries="$countries,Czech Republic" ;;
-        "Hungary") countries="$countries,Hungary" ;;
-        "Romania") countries="$countries,Romania" ;;
-        "Bulgaria") countries="$countries,Bulgaria" ;;
-        "Greece") countries="$countries,Greece" ;;
-        "Turkey") countries="$countries,Turkey" ;;
-        "Russia") countries="$countries,Russia" ;;
-        "Ukraine") countries="$countries,Ukraine" ;;
-        "Belarus") countries="$countries,Belarus" ;;
-        "China") countries="$countries,China" ;;
-        "Japan") countries="$countries,Japan" ;;
-        "South Korea") countries="$countries,South Korea" ;;
-        "Taiwan") countries="$countries,Taiwan" ;;
-        "Hong Kong") countries="$countries,Hong Kong" ;;
-        "Singapore") countries="$countries,Singapore" ;;
-        "Malaysia") countries="$countries,Malaysia" ;;
-        "Thailand") countries="$countries,Thailand" ;;
-        "Vietnam") countries="$countries,Vietnam" ;;
-        "Indonesia") countries="$countries,Indonesia" ;;
-        "Philippines") countries="$countries,Philippines" ;;
-        "India") countries="$countries,India" ;;
-        "Pakistan") countries="$countries,Pakistan" ;;
-        "Bangladesh") countries="$countries,Bangladesh" ;;
-        "Sri Lanka") countries="$countries,Sri Lanka" ;;
-        "Nepal") countries="$countries,Nepal" ;;
-        "Iran") countries="$countries,Iran" ;;
-        "Israel") countries="$countries,Israel" ;;
-        "Saudi Arabia") countries="$countries,Saudi Arabia" ;;
-        "UAE") countries="$countries,United Arab Emirates" ;;
-        "Egypt") countries="$countries,Egypt" ;;
-        "South Africa") countries="$countries,South Africa" ;;
-        "Kenya") countries="$countries,Kenya" ;;
-        "Morocco") countries="$countries,Morocco" ;;
-        "Tunisia") countries="$countries,Tunisia" ;;
-        "Australia") countries="$countries,Australia" ;;
-        "New Zealand") countries="$countries,New Zealand" ;;
-      esac
-    done
+    # Remove "Worldwide" if it's in the list
+    countries="${countries//Worldwide/}"
+    countries="${countries## }"  # Remove leading spaces
+    countries="${countries%% }"  # Remove trailing spaces
     
-    # Remove leading comma and configure mirrors
-    countries="${countries#,}"
     if [[ -n "$countries" ]]; then
       reflector --country "$countries" --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
     else
