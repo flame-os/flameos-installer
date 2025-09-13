@@ -218,15 +218,15 @@ set_locale() {
 set_mirror_region() {
   echo "Fetching available mirror countries..."
   
-  # Get available countries from reflector
+  # Get available countries from reflector and clean them up
   local countries
-  countries=$(reflector --list-countries 2>/dev/null | awk '{print $1}' | grep -v '^$' | sort) || {
+  countries=$(reflector --list-countries 2>/dev/null | grep -E "^[A-Z]" | awk '{$1=""; print $0}' | sed 's/^ *//' | sort | uniq) || {
     echo "Failed to fetch countries, using fallback list"
-    countries="Worldwide\nUnited States\nGermany\nFrance\nUnited Kingdom\nCanada\nAustralia\nJapan\nChina\nIndia"
+    countries="United States\nGermany\nFrance\nUnited Kingdom\nCanada\nAustralia\nJapan\nChina\nIndia\nNetherlands"
   }
   
   # Add Worldwide option at the top
-  local regions="Worldwide\n$countries"
+  local regions="Worldwide"$'\n'"$countries"
   
   echo "Current selection: ${MIRROR_REGION:-None}"
   echo "Select mirror regions (use Tab to select multiple, Enter to confirm):"

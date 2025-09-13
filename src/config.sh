@@ -52,8 +52,8 @@ get_available_desktops() {
   
   for script in "$desktop_dir"/*.sh; do
     if [[ -f "$script" ]]; then
-      local name=""
-      source "$script"
+      # Extract name without sourcing the script to avoid running install function
+      local name=$(grep '^name=' "$script" | head -1 | cut -d'"' -f2)
       [[ -n "$name" ]] && desktops+=("$name")
     fi
   done
