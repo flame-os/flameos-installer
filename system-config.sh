@@ -16,6 +16,28 @@ configure_flameos_system() {
   # Install reflector for mirror management
   pacman -S --noconfirm reflector
   
+  # Configure mirrors based on region
+  if [[ -n "${MIRROR_REGION:-}" && "$MIRROR_REGION" != "Worldwide" ]]; then
+    log "Configuring mirrors for region: $MIRROR_REGION"
+    case "$MIRROR_REGION" in
+      "United States") reflector --country "United States" --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist ;;
+      "Canada") reflector --country "Canada" --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist ;;
+      "United Kingdom") reflector --country "United Kingdom" --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist ;;
+      "Germany") reflector --country "Germany" --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist ;;
+      "France") reflector --country "France" --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist ;;
+      "Australia") reflector --country "Australia" --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist ;;
+      "Japan") reflector --country "Japan" --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist ;;
+      "China") reflector --country "China" --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist ;;
+      "India") reflector --country "India" --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist ;;
+      "Brazil") reflector --country "Brazil" --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist ;;
+      "Russia") reflector --country "Russia" --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist ;;
+      *) reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist ;;
+    esac
+  else
+    log "Using worldwide mirrors"
+    reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+  fi
+  
   # Create new os-release content
   cat > /etc/os-release << 'EOF'
 NAME="FlameOS"

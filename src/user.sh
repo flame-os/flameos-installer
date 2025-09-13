@@ -142,10 +142,11 @@ system_config_step() {
     echo "Current settings:"
     echo " Timezone: ${TIMEZONE:-not set}"
     echo " Locale: ${LOCALE:-not set}"
+    echo " Mirror Region: ${MIRROR_REGION:-not set}"
     echo
     
     local choice
-    choice=$(printf "Set Timezone\nSet Locale\nContinue\nGo Back" | eval "$FZF --prompt=\"System Config > \" --header=\"Configure system settings\"") || return 1
+    choice=$(printf "Set Timezone\nSet Locale\nSet Mirror Region\nContinue\nGo Back" | eval "$FZF --prompt=\"System Config > \" --header=\"Configure system settings\"") || return 1
     
     case "$choice" in
       "Set Timezone")
@@ -153,6 +154,9 @@ system_config_step() {
         ;;
       "Set Locale")
         set_locale
+        ;;
+      "Set Mirror Region")
+        set_mirror_region
         ;;
       "Continue")
         if [[ -z "$TIMEZONE" ]]; then
@@ -162,6 +166,10 @@ system_config_step() {
         if [[ -z "$LOCALE" ]]; then
           LOCALE="en_US.UTF-8"
           log "Locale defaulted to: $LOCALE"
+        fi
+        if [[ -z "$MIRROR_REGION" ]]; then
+          MIRROR_REGION="Worldwide"
+          log "Mirror region defaulted to: $MIRROR_REGION"
         fi
         return 0
         ;;
@@ -202,6 +210,17 @@ set_locale() {
   LOCALE=$(printf "%s" "$locales" | eval "$FZF --prompt=\"Locale > \" --header=\"Choose system locale\"") || return
   
   log "Locale set to: $LOCALE"
+}
+
+# -------------------------
+# Mirror Region Configuration
+# -------------------------
+set_mirror_region() {
+  local regions="Worldwide\nUnited States\nCanada\nUnited Kingdom\nGermany\nFrance\nAustralia\nJapan\nChina\nIndia\nBrazil\nRussia"
+  
+  MIRROR_REGION=$(printf "%s" "$regions" | eval "$FZF --prompt=\"Mirror > \" --header=\"Choose mirror region\"") || return
+  
+  log "Mirror region set to: $MIRROR_REGION"
 }
 
 # -------------------------

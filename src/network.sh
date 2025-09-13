@@ -13,29 +13,6 @@ network_setup_step() {
   if ping -c 1 8.8.8.8 &>/dev/null || ping -c 1 1.1.1.1 &>/dev/null; then
     log "Internet connection detected"
     echo "✓ Internet connection available"
-    
-    # Configure mirrors
-    echo "Configuring package mirrors..."
-    local choice
-    choice=$(printf "Auto (Reflector)\nManual Selection\nSkip Mirror Config" | eval "$FZF --prompt=\"Mirrors > \" --header=\"Configure package mirrors\"") || return 1
-    
-    case "$choice" in
-      "Auto (Reflector)")
-        if command -v reflector &>/dev/null; then
-          reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
-          log "Mirrors updated automatically"
-        else
-          echo "Reflector not available, skipping mirror update"
-        fi
-        ;;
-      "Manual Selection")
-        nano /etc/pacman.d/mirrorlist
-        ;;
-      "Skip Mirror Config")
-        log "Skipping mirror configuration"
-        ;;
-    esac
-    
     sleep 1
     return 0
   fi
