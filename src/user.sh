@@ -216,11 +216,19 @@ set_locale() {
 # Mirror Region Configuration
 # -------------------------
 set_mirror_region() {
-  local regions="Worldwide\nUnited States\nCanada\nUnited Kingdom\nGermany\nFrance\nAustralia\nJapan\nChina\nIndia\nBrazil\nRussia"
+  local regions="Worldwide\nUnited States\nCanada\nMexico\nBrazil\nArgentina\nChile\nUnited Kingdom\nIreland\nGermany\nFrance\nItaly\nSpain\nPortugal\nNetherlands\nBelgium\nSwitzerland\nAustria\nSweden\nNorway\nDenmark\nFinland\nPoland\nCzech Republic\nHungary\nRomania\nBulgaria\nGreece\nTurkey\nRussia\nUkraine\nBelarusChina\nJapan\nSouth Korea\nTaiwan\nHong Kong\nSingapore\nMalaysia\nThailand\nVietnam\nIndonesia\nPhilippines\nIndia\nPakistan\nBangladesh\nSri Lanka\nNepal\nIran\nIsrael\nSaudi Arabia\nUAE\nEgypt\nSouth Africa\nKenya\nMorocco\nTunisia\nAustralia\nNew Zealand"
   
-  MIRROR_REGION=$(printf "%s" "$regions" | eval "$FZF --prompt=\"Mirror > \" --header=\"Choose mirror region\"") || return
+  echo "Current selection: ${MIRROR_REGION:-None}"
+  echo "Select mirror regions (use Tab to select multiple, Enter to confirm):"
+  echo
   
-  log "Mirror region set to: $MIRROR_REGION"
+  local selected
+  selected=$(printf "%s" "$regions" | eval "$FZF --multi --prompt=\"Mirrors > \" --header=\"Select one or more mirror regions (Tab=select, Enter=confirm)\"") || return
+  
+  # Convert newlines to comma-separated for storage
+  MIRROR_REGION=$(echo "$selected" | tr '\n' ',')
+  
+  log "Mirror regions set to: $MIRROR_REGION"
 }
 
 # -------------------------
@@ -232,17 +240,13 @@ desktop_selection_step() {
   echo "Current selection: ${DESKTOP:-not set}"
   echo
   
-  DESKTOP=$(printf "$(get_available_desktops)\nGo Back" | eval "$FZF --prompt=\"Desktop > \" --header=\"Choose desktop environment\"") || return 1
+  local choice
+  choice=$(get_available_desktops | eval "$FZF --prompt=\"Desktop > \" --header=\"Choose desktop environment\"") || return 1
   
-  case "$DESKTOP" in
-    "Go Back")
-      return 1
-      ;;
-    *)
-      log "Desktop environment set to: $DESKTOP"
-      return 0
-      ;;
-  esac
+  DESKTOP="$choice"
+  log "Desktop environment set to: $DESKTOP"
+  
+  return 0
 }
 
 # -------------------------
