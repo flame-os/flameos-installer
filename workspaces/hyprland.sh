@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 
 name="Hyprland"
-dotfiles="Flamedots"
+dotfiles=""
+
+# Simple log function for chroot environment
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+}
 
 install() {
   log "Installing $name desktop environment..."
@@ -16,9 +21,7 @@ install() {
     sddm
     bluez bluez-utils
     networkmanager network-manager-applet
-    git
-    neovim
-    nano
+    git nano neovim
   )
   
   # Install packages
@@ -29,53 +32,7 @@ install() {
   
   # Create user config directories
   mkdir -p "/home/$USERNAME/.config"
-  
-  # Install dotfiles if available
-  if [[ -n "$dotfiles" && -d "/tmp/dotfiles/$dotfiles" ]]; then
-    log "Installing $dotfiles configuration..."
-    cp -r "/tmp/dotfiles/$dotfiles/"* "/home/$USERNAME/"
-    
-    # Run dotfiles install script if it exists
-    if [[ -f "/tmp/dotfiles/$dotfiles/install.sh" ]]; then
-      log "Running $dotfiles install script..."
-      cd "/tmp/dotfiles/$dotfiles"
-      chmod +x install.sh
-      USERNAME="$USERNAME" ./install.sh
-    fi
-  else
-    log "Dotfiles not found, creating basic config..."
-    mkdir -p "/home/$USERNAME/.config/hypr"
-    cat > "/home/$USERNAME/.config/hypr/hyprland.conf" <<EOF
-monitor=,preferred,auto,auto
-exec-once = waybar
-exec-once = dunst
-input {
-    kb_layout = us
-    follow_mouse = 1
-    sensitivity = 0
-}
-general {
-    gaps_in = 5
-    gaps_out = 20
-    border_size = 2
-    col.active_border = rgba(33ccffee)
-    col.inactive_border = rgba(595959aa)
-    layout = dwindle
-}
-bind = SUPER, Q, exec, kitty
-bind = SUPER, C, killactive,
-bind = SUPER, E, exec, thunar
-bind = SUPER, R, exec, wofi --show drun
-bind = SUPER, left, movefocus, l
-bind = SUPER, right, movefocus, r
-bind = SUPER, up, movefocus, u
-bind = SUPER, down, movefocus, d
-bind = SUPER, 1, workspace, 1
-bind = SUPER, 2, workspace, 2
-bind = SUPER SHIFT, 1, movetoworkspace, 1
-bind = SUPER SHIFT, 2, movetoworkspace, 2
-EOF
-  fi
+
   
   # Set proper ownership
   chown -R "$USERNAME:$USERNAME" "/home/$USERNAME"
@@ -84,6 +41,29 @@ EOF
   systemctl enable sddm
   systemctl enable NetworkManager
   systemctl enable bluetooth
+  git clone https://github.com/aislxflames/flamedots "/home/$USERNAME/flamedots"
+  sed -i '$a exec-once = ~/setup-hyprland.sh' /home/$USERNAME/.config/hypr/hyprland.conf
+  
+cat <<'EOF' > /home/$USERNAME/setup-hyprland.sh
+  #!/bin/bash
+  kitty -e bash -c '
+    if ping -c 1 google.com &> /dev/null; then
+    echo "Internet connection is active."
+  else
+    nmtui
+  fi
+  # FlameDots setup
+  ~/flamedots/build.sh
+  '
+  rm -rf ~/setup-hyprland.sh
+EOF
+
+  
+  chown -R "$USERNAME:$USERNAME" "/home/$USERNAME"
+  chmod +x /home/$USERNAME/setup-hyprland.sh
 
   log "Hyprland installation completed"
 }
+
+# Run install function when script is executed
+install

@@ -437,86 +437,37 @@ install_desktop_environment() {
   
   show_banner "Installing Desktop Environment: $DESKTOP"
   
-  # Copy dotfiles to chroot if available
-  if [[ -d "$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/dotfiles" ]]; then
-    cp -r "$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/dotfiles" /mnt/tmp/
+  # Copy workspaces directory to chroot
+  local workspaces_dir="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/workspaces"
+  if [[ -d "$workspaces_dir" ]]; then
+    cp -r "$workspaces_dir" /mnt/tmp/
+    log "Copied workspaces directory to chroot"
   fi
   
+  # Find and execute the appropriate workspace script
+  local desktop_script=""
   case "$DESKTOP" in
-    "Hyprland")
-      arch-chroot /mnt bash -c "
-        pacman -S --noconfirm hyprland waybar wofi dunst kitty thunar firefox grim slurp wl-clipboard brightnessctl pamixer polkit-gnome xdg-desktop-portal-hyprland xdg-desktop-portal-wlr
-        
-        mkdir -p /home/${USERNAME}/.config
-        
-        # Install Flamedots if available
-        if [ -d '/tmp/dotfiles/Flamedots' ]; then
-          cp -r /tmp/dotfiles/Flamedots/* /home/${USERNAME}/
-          
-          # Run dotfiles install script if it exists
-          if [ -f '/tmp/dotfiles/Flamedots/install.sh' ]; then
-            cd /tmp/dotfiles/Flamedots
-            chmod +x install.sh
-            USERNAME='${USERNAME}' ./install.sh
-          fi
-        else
-          # Create basic Hyprland config
-          mkdir -p /home/${USERNAME}/.config/hypr
-          cat > /home/${USERNAME}/.config/hypr/hyprland.conf <<'EOF'
-monitor=,preferred,auto,auto
-exec-once = waybar
-exec-once = dunst
-input {
-    kb_layout = us
-    follow_mouse = 1
-    sensitivity = 0
-}
-general {
-    gaps_in = 5
-    gaps_out = 20
-    border_size = 2
-    col.active_border = rgba(33ccffee)
-    col.inactive_border = rgba(595959aa)
-    layout = dwindle
-}
-bind = SUPER, Q, exec, kitty
-bind = SUPER, C, killactive,
-bind = SUPER, E, exec, thunar
-bind = SUPER, R, exec, wofi --show drun
-bind = SUPER, left, movefocus, l
-bind = SUPER, right, movefocus, r
-bind = SUPER, up, movefocus, u
-bind = SUPER, down, movefocus, d
-bind = SUPER, 1, workspace, 1
-bind = SUPER, 2, workspace, 2
-bind = SUPER SHIFT, 1, movetoworkspace, 1
-bind = SUPER SHIFT, 2, movetoworkspace, 2
-EOF
-        fi
-        
-        chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
-      "
-      ;;
-    "KDE Plasma")
-      arch-chroot /mnt pacman -S --noconfirm plasma-meta kde-applications sddm
-      arch-chroot /mnt systemctl enable sddm
-      ;;
-    "GNOME")
-      arch-chroot /mnt pacman -S --noconfirm gnome gnome-extra gdm
-      arch-chroot /mnt systemctl enable gdm
-      ;;
-    "XFCE")
-      arch-chroot /mnt pacman -S --noconfirm xfce4 xfce4-goodies lightdm lightdm-gtk-greeter
-      arch-chroot /mnt systemctl enable lightdm
-      ;;
-    "i3")
-      arch-chroot /mnt pacman -S --noconfirm i3-wm i3status dmenu i3lock xorg-server lightdm
-      arch-chroot /mnt systemctl enable lightdm
-      ;;
-    "Sway")
-      arch-chroot /mnt pacman -S --noconfirm sway waybar wofi
-      ;;
+    "Hyprland") desktop_script="hyprland.sh" ;;
+    "KDE Plasma") desktop_script="kde.sh" ;;
+    "GNOME") desktop_script="gnome.sh" ;;
+    "XFCE") desktop_script="xfce.sh" ;;
+    "i3") desktop_script="i3.sh" ;;
+    "Sway") desktop_script="sway.sh" ;;
+    "Minimal") desktop_script="minimal.sh" ;;
   esac
+  
+  if [[ -n "$desktop_script" && -f "/mnt/tmp/workspaces/$desktop_script" ]]; then
+    log "Running $desktop_script inside chroot"
+    arch-chroot /mnt bash -c "
+      export USERNAME='${USERNAME}'
+      cd /tmp/workspaces
+      chmod +x '$desktop_script'
+      ./'$desktop_script'
+    "
+  else
+    log "Desktop script not found: $desktop_script"
+    return 1
+  fi
   
   log "Desktop environment installation completed"
 }

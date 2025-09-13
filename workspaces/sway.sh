@@ -10,7 +10,9 @@ install() {
     sway waybar wofi
     kitty firefox thunar
     grim slurp wl-clipboard
+    sddm
   )
+  sudo systemctl enable --now sddm
   
   pacman -S --noconfirm "${packages[@]}"
 }
