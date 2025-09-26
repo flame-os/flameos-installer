@@ -1,68 +1,58 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
 
-# FlameOS Installer - Main Entry Point
-# Split into modular files for better organization
+# FLAME OS Installer - Main Script
+set -e
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Counter for quit attempts
+QUIT_ATTEMPTS=0
+
+# Handle Ctrl+C - show message and increment counter
+handle_interrupt() {
+    QUIT_ATTEMPTS=$((QUIT_ATTEMPTS + 1))
+    if [ $QUIT_ATTEMPTS -ge 4 ]; then
+        echo -e "\n${RED}Exiting installer...${NC}"
+        exit 0
+    else
+        echo -e "\n${YELLOW}Press Ctrl+C $((4 - QUIT_ATTEMPTS)) more times to quit${NC}"
+    fi
+}
+
+trap 'handle_interrupt' INT
+
+# Prevent other signals
+trap '' TERM QUIT TSTP
 
 # Source all modules
-source "$SCRIPT_DIR/src/config.sh"
-source "$SCRIPT_DIR/src/ui.sh"
-source "$SCRIPT_DIR/src/disk.sh"
-source "$SCRIPT_DIR/src/partition.sh"
-source "$SCRIPT_DIR/src/install.sh"
-source "$SCRIPT_DIR/src/network.sh"
-source "$SCRIPT_DIR/src/user.sh"
-source "$SCRIPT_DIR/src/desktop.sh"
-source "$SCRIPT_DIR/system-config.sh"
-
-# Main installer flow
-main() {
-  check_root
-  show_banner "FlameOS Installer"
-  
-  while true; do
-    local choice
-    choice=$(printf "Guided Installation\nAdvanced Mode\nExit" | eval "$FZF --prompt=\"Main Menu > \" --header=\"Choose installation mode\"") || {
-      echo "Exiting installer..."
-      exit 0
-    }
-    
-    case "$choice" in
-      "Guided Installation")
-        guided_installation || true
-        ;;
-      "Advanced Mode")
-        advanced_mode || true
-        ;;
-      "Exit")
-        echo "Goodbye!"
-        exit 0
-        ;;
-      *)
-        echo "Goodbye!"
-        exit 0
-        ;;
-    esac
-  done
-}
+source ./lib/colors.sh
+source ./lib/banner.sh
+source ./ui/network.sh
+source ./ui/user.sh
+source ./ui/disk.sh
+source ./ui/system.sh
+source ./ui/packages.sh
+source ./ui/main.sh
+source ./ui/basic.sh
+source ./ui/advanced.sh
 
 # Check if running as root
-check_root() {
-  if [[ $EUID -ne 0 ]]; then
-    echo "ERROR: This installer must be run as root."
-    echo "Please run: sudo ./install.sh"
-    echo ""
-    echo "The installer needs root privileges to:"
-    echo "- Format and partition disks"
-    echo "- Mount filesystems"
-    echo "- Install packages"
-    echo "- Configure system files"
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${RED}Error: This installer must be run as root.${NC}"
+    echo -e "${YELLOW}Please run: sudo ./install.sh${NC}"
     exit 1
-  fi
-}
+fi
 
-# Run main function
-main "$@"
+# Create temp directory for installer data
+mkdir -p /tmp/flameos
+chmod 755 /tmp/flameos
+
+# Check if gum is installed
+if ! command -v gum &> /dev/null; then
+    echo -e "${RED}Error: gum is required but not installed.${NC}"
+    echo "Please install gum first: https://github.com/charmbracelet/gum"
+    exit 1
+fi
+
+# Start the installer in a loop
+while true; do
+    main_menu || continue
+done

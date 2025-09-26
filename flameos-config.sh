@@ -16,28 +16,6 @@ configure_flameos_system() {
   # Install reflector for mirror management
   pacman -S --noconfirm reflector
   
-  # Configure mirrors based on region
-  if [[ -n "${MIRROR_REGION:-}" && "$MIRROR_REGION" != "Worldwide" ]]; then
-    log "Configuring mirrors for regions: $MIRROR_REGION"
-    
-    # Convert comma-separated regions to reflector format
-    local countries="${MIRROR_REGION//,/ }"
-    
-    # Remove "Worldwide" if it's in the list
-    countries="${countries//Worldwide/}"
-    countries="${countries## }"  # Remove leading spaces
-    countries="${countries%% }"  # Remove trailing spaces
-    
-    if [[ -n "$countries" ]]; then
-      reflector --country "$countries" --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
-    else
-      reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
-    fi
-  else
-    log "Using worldwide mirrors"
-    reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
-  fi
-  
   # Create new os-release content
   cat > /etc/os-release << 'EOF'
 NAME="FlameOS"
