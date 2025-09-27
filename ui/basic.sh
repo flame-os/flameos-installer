@@ -2,48 +2,31 @@
 
 # Basic Setup Menu - Automatic step-by-step configuration
 basic_setup() {
-    show_banner
-    echo -e "${GREEN}BASIC SETUP${NC}"
-    echo -e "${YELLOW}Automatic step-by-step installation${NC}"
-    echo ""
-    
-    gum style --foreground 205 "This will guide you through all installation steps automatically"
-    
-    CHOICE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
-        "Start Basic Setup" \
-        "Back to Main Menu")
-    
-    case $CHOICE in
-        "Start Basic Setup")
-            basic_step_1_network
-            ;;
-        "Back to Main Menu")
-            main_menu
-            ;;
-    esac
+    # Skip the confirmation menu and start directly
+    basic_step_1_network
 }
 
 # Step 1: Network Detection
 basic_step_1_network() {
     show_banner
-    gum style --foreground 212 "Step 1/12: Network Detection"
+    echo -e "${CYAN}Step 1/12: Network Detection${NC}"
     echo ""
     
     if ping -c 1 8.8.8.8 &> /dev/null; then
-        gum style --foreground 46 "✓ Network connection detected"
+        echo -e "${GREEN}✓ Network connection detected${NC}"
         sleep 1
         basic_step_2_disk
     else
-        gum style --foreground 196 "✗ No network connection found"
-        gum style --foreground 214 "Opening network configuration..."
+        echo -e "${RED}✗ No network connection found${NC}"
+        echo -e "${YELLOW}Opening network configuration...${NC}"
         sleep 1
         nmtui
         if ping -c 1 8.8.8.8 &> /dev/null; then
-            gum style --foreground 46 "✓ Network configured successfully"
+            echo -e "${GREEN}✓ Network configured successfully${NC}"
             sleep 1
             basic_step_2_disk
         else
-            gum style --foreground 196 "Network still not available"
+            echo -e "${RED}Network still not available${NC}"
             gum input --placeholder "Press Enter to try again..."
             basic_step_1_network
         fi
@@ -53,7 +36,7 @@ basic_step_1_network() {
 # Step 2: Disk Selection
 basic_step_2_disk() {
     show_banner
-    gum style --foreground 212 "Step 2/12: Disk Configuration"
+    echo -e "${CYAN}Step 2/12: Disk Configuration${NC}"
     echo ""
     
     # Call disk selection but override the return path

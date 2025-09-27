@@ -4,16 +4,19 @@
 main_menu() {
     show_banner
     
+    echo -e "${YELLOW}Choose your installation method:${NC}"
+    echo ""
+    
     CHOICE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
-        "Basic Setup" \
-        "Advanced Setup" \
+        "Guided Installation" \
+        "Expert Mode" \
         "Exit")
     
     case $CHOICE in
-        "Basic Setup")
+        "Guided Installation")
             basic_setup
             ;;
-        "Advanced Setup")
+        "Expert Mode")
             advanced_setup
             ;;
         "Exit")

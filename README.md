@@ -1,5 +1,3 @@
-# FLAME OS Installer
-
 A beautiful terminal-based installer for FLAME OS using gum for the user interface.
 
 ## Prerequisites

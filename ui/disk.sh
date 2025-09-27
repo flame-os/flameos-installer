@@ -26,7 +26,7 @@ disk_selection() {
     fi
     
     # Build menu options
-    MENU_OPTIONS=("Manual Partition" "Auto Partition")
+    MENU_OPTIONS=("Auto Partition" "Custom Partition Setup")
     
     # Add clear option if mounts exist
     if [ -f "/tmp/flameos/mounts" ]; then
@@ -35,7 +35,7 @@ disk_selection() {
     
     # Add continue button if both root and boot are configured
     if [ "$HAS_ROOT" = true ] && [ "$HAS_BOOT" = true ]; then
-        MENU_OPTIONS+=("→ Continue to Next Step")
+        MENU_OPTIONS=("→ Continue to Next Step (Recommended)" "${MENU_OPTIONS[@]}")
     fi
     
     MENU_OPTIONS+=("Go Back to Previous Menu")
@@ -43,10 +43,10 @@ disk_selection() {
     CHOICE=$(gum choose --cursor-prefix "> " --selected-prefix "* " "${MENU_OPTIONS[@]}")
     
     case $CHOICE in
-        "Manual Partition")
+        "Custom Partition Setup")
             manual_partition
             ;;
-        "Auto Partition")
+        "Auto Partition (Recommended)")
             auto_partition
             ;;
         "Clear All Mountpoints")
@@ -55,7 +55,7 @@ disk_selection() {
             sleep 1
             disk_selection
             ;;
-        "→ Continue to Next Step")
+        "→ Continue to Next Step (Recommended)")
             # Auto-mount partitions before continuing
             gum style --foreground 205 "Mounting partitions..."
             
@@ -101,7 +101,7 @@ disk_selection() {
             ;;
         "Go Back to Previous Menu")
             if [ "$BASIC_MODE" = true ]; then
-                basic_setup
+                main_menu
             else
                 advanced_setup
             fi
@@ -749,7 +749,9 @@ create_basic_partitions_freespace() {
     
     # Force re-read partition table multiple ways
     blockdev --rereadpt /dev/$disk 2>/dev/null || true
-    echo 1 > /sys/block/${disk}/device/rescan 2>/dev/null || true
+    if [ -w "/sys/block/${disk}/device/rescan" ]; then
+        echo 1 > /sys/block/${disk}/device/rescan 2>/dev/null || true
+    fi
     
     sleep 5
     
