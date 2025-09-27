@@ -442,12 +442,17 @@ perform_installation() {
     chmod +x /mnt/modules/*.sh
     
     # Copy FlameOS configuration script
-    cp ./flameos-config.sh /mnt/
+    cp ./lib/flameos-config.sh /mnt/
     chmod +x /mnt/flameos-config.sh
     
-    # Copy FlameOS logo
-    mkdir -p /mnt/boot/grub/themes/shared
-    cp ./flameos.png /mnt/boot/grub/themes/shared/
+    # Copy FlameOS logo - check if /boot/efi is mounted separately
+    if grep -q "/boot/efi" /tmp/flameos/mounts; then
+        mkdir -p /mnt/efi/grub/themes/shared
+        cp ./flameos.png /mnt/efi/grub/themes/shared/
+    else
+        mkdir -p /mnt/boot/grub/themes/shared
+        cp ./flameos.png /mnt/boot/grub/themes/shared/
+    fi
     
     # Install additional packages if selected
     if [ -f "/tmp/flameos/packages" ]; then
@@ -499,7 +504,10 @@ systemctl enable bluetooth
 bash /flameos-config.sh
 
 # Desktop environment installation
-case "$DESKTOP" in
+case "$DESKTOP" in  
+    "Hyprland")
+        bash /modules/hyprland.sh
+        ;; 
     "KDE Plasma")
         bash /modules/kde.sh
         ;;
@@ -511,9 +519,6 @@ case "$DESKTOP" in
         ;;
     "i3wm")
         bash /modules/i3wm.sh
-        ;;
-    "Hyprland")
-        bash /modules/hyprland.sh
         ;;
     "None (CLI only)")
         echo "No desktop environment selected"

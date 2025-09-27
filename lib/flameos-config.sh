@@ -45,14 +45,22 @@ EOF
   cat > /etc/grub.d/05_debian_theme << 'EOF'
 #!/bin/bash
 
-SHARED_LOGO="/boot/grub/themes/shared/flameos.png"
+# Check if /boot/efi is mounted separately for logo location
+if mountpoint -q /boot/efi; then
+    SHARED_LOGO="/boot/efi/grub/themes/shared/flameos.png"
+else
+    SHARED_LOGO="/boot/grub/themes/shared/flameos.png"
+fi
+
+# GRUB themes are always in /boot/grub/themes/
+GRUB_THEMES_DIR="/boot/grub/themes"
 
 if [[ ! -f "$SHARED_LOGO" ]]; then
     echo "Shared logo not found at $SHARED_LOGO"
     exit 1
 fi
 
-for theme_dir in /boot/grub/themes/*/; do
+for theme_dir in ${GRUB_THEMES_DIR}/*/; do
     [[ "$theme_dir" == *"/shared/" ]] && continue
     mkdir -p "${theme_dir}icons"
     cp "$SHARED_LOGO" "${theme_dir}icons/flameos.png"
