@@ -1,4 +1,9 @@
 #!/bin/bash
+# FlameOS - The Future of Linux
+# Copyright (c) 2024 FlameOS Team
+# https://flame-os.github.io
+# Licensed under GPL-3.0
+
 
 # Disk Selection
 disk_selection() {
@@ -434,10 +439,10 @@ auto_partition() {
         gum style --foreground 196 "WARNING: This will erase all data on /dev/$SELECTED_PARTITION"
     fi
     CONFIRM=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
-        "Yes, continue" \
-        "No, go back")
+        "Yes" \
+        "No")
     
-    if [ "$CONFIRM" = "No, go back" ]; then
+    if [ "$CONFIRM" = "No" ]; then
         disk_selection
         return
     fi

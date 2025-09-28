@@ -1,4 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/bash
+# FlameOS - The Future of Linux
+# Copyright (c) 2024 FlameOS Team
+# https://flame-os.github.io
+# Licensed under GPL-3.0
+
 set -euo pipefail
 
 # FlameOS System Configuration Script

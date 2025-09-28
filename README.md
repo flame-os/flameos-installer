@@ -1,4 +1,9 @@
-A beautiful terminal-based installer for FLAME OS using gum for the user interface.
+# FlameOS - The Future of Linux
+# Copyright (c) 2024 FlameOS Team
+# https://flame-os.github.io
+# Licensed under GPL-3.0
+
+A beautiful terminal-based installer for FlameOS using gum for the user interface.
 
 ## Prerequisites
 
@@ -24,7 +29,7 @@ Run the installer:
 
 ## Features
 
-- **ASCII Art Banner** - Eye-catching FLAME OS logo
+- **ASCII Art Banner** - Eye-catching FlameOS logo
 - **Two Setup Modes**:
   - **Basic Setup** - Simple installation process
   - **Advanced Setup** - Full customization options

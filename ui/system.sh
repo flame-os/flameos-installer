@@ -1,4 +1,9 @@
 #!/bin/bash
+# FlameOS - The Future of Linux
+# Copyright (c) 2024 FlameOS Team
+# https://flame-os.github.io
+# Licensed under GPL-3.0
+
 
 # Locale Selection
 locale_selection() {
@@ -11,22 +16,23 @@ locale_selection() {
         echo ""
     fi
     
-    LOCALES=(
-        "en_US.UTF-8"
-        "en_GB.UTF-8"
-        "de_DE.UTF-8"
-        "fr_FR.UTF-8"
-        "es_ES.UTF-8"
-        "it_IT.UTF-8"
-        "pt_BR.UTF-8"
-        "ru_RU.UTF-8"
-        "ja_JP.UTF-8"
-        "zh_CN.UTF-8"
+    LOCALE_OPTIONS=(
+        "English (US) - en_US.UTF-8"
+        "English (UK) - en_GB.UTF-8"
+        "German (Germany) - de_DE.UTF-8"
+        "French (France) - fr_FR.UTF-8"
+        "Spanish (Spain) - es_ES.UTF-8"
+        "Italian (Italy) - it_IT.UTF-8"
+        "Portuguese (Brazil) - pt_BR.UTF-8"
+        "Russian (Russia) - ru_RU.UTF-8"
+        "Japanese (Japan) - ja_JP.UTF-8"
+        "Chinese (China) - zh_CN.UTF-8"
     )
     
-    SELECTED_LOCALE=$(gum choose --cursor-prefix "> " --selected-prefix "* " "${LOCALES[@]}")
+    SELECTED_OPTION=$(gum choose --cursor-prefix "> " --selected-prefix "* " "${LOCALE_OPTIONS[@]}")
     
-    if [ -n "$SELECTED_LOCALE" ]; then
+    if [ -n "$SELECTED_OPTION" ]; then
+        SELECTED_LOCALE=$(echo "$SELECTED_OPTION" | sed 's/.* - //')
         echo "$SELECTED_LOCALE" > /tmp/flameos/locale
         gum style --foreground 46 "Selected locale: $SELECTED_LOCALE"
         sleep 1
@@ -541,11 +547,11 @@ REALEND
     echo ""
     
     CHOICE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
-        "Reboot Now" \
-        "Exit to Shell")
+        "Yes" \
+        "No")
     
     case $CHOICE in
-        "Reboot Now")
+        "Yes")
             gum style --foreground 214 "Rebooting in 3 seconds..."
             sleep 3
             reboot
