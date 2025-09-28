@@ -1,8 +1,4 @@
 #!/bin/bash
-# FlameOS - The Future of Linux
-# Copyright (c) 2024 FlameOS Team
-# https://flame-os.github.io
-# Licensed under GPL-3.0
 
 
 # Locale Selection
@@ -11,8 +7,8 @@ locale_selection() {
     gum style --foreground 212 "Locale Selection"
     echo ""
     
-    if [ -f "/tmp/flameos/locale" ]; then
-        gum style --foreground 46 "Current locale: $(cat /tmp/flameos/locale)"
+    if [ -f "/tmp/asiraos/locale" ]; then
+        gum style --foreground 46 "Current locale: $(cat /tmp/asiraos/locale)"
         echo ""
     fi
     
@@ -33,7 +29,7 @@ locale_selection() {
     
     if [ -n "$SELECTED_OPTION" ]; then
         SELECTED_LOCALE=$(echo "$SELECTED_OPTION" | sed 's/.* - //')
-        echo "$SELECTED_LOCALE" > /tmp/flameos/locale
+        echo "$SELECTED_LOCALE" > /tmp/asiraos/locale
         gum style --foreground 46 "Selected locale: $SELECTED_LOCALE"
         sleep 1
     fi
@@ -47,8 +43,8 @@ swap_config() {
     gum style --foreground 212 "Swap Configuration"
     echo ""
     
-    if [ -f "/tmp/flameos/swap" ]; then
-        gum style --foreground 46 "Current swap: $(cat /tmp/flameos/swap)"
+    if [ -f "/tmp/asiraos/swap" ]; then
+        gum style --foreground 46 "Current swap: $(cat /tmp/asiraos/swap)"
         echo ""
     fi
     
@@ -57,7 +53,7 @@ swap_config() {
         "Enable Swap (8GB)" \
         "Disable Swap")
     
-    echo "$SWAP_CHOICE" > /tmp/flameos/swap
+    echo "$SWAP_CHOICE" > /tmp/asiraos/swap
     gum style --foreground 46 "Swap configuration: $SWAP_CHOICE"
     sleep 1
     
@@ -76,8 +72,8 @@ bootloader_selection() {
     gum style --foreground 212 "Bootloader Selection"
     echo ""
     
-    if [ -f "/tmp/flameos/bootloader" ]; then
-        gum style --foreground 46 "Current bootloader: $(cat /tmp/flameos/bootloader)"
+    if [ -f "/tmp/asiraos/bootloader" ]; then
+        gum style --foreground 46 "Current bootloader: $(cat /tmp/asiraos/bootloader)"
         echo ""
     fi
     
@@ -86,7 +82,7 @@ bootloader_selection() {
     SELECTED_BOOTLOADER=$(gum choose --cursor-prefix "> " --selected-prefix "* " "${BOOTLOADERS[@]}")
     
     if [ -n "$SELECTED_BOOTLOADER" ]; then
-        echo "$SELECTED_BOOTLOADER" > /tmp/flameos/bootloader
+        echo "$SELECTED_BOOTLOADER" > /tmp/asiraos/bootloader
         gum style --foreground 46 "Selected bootloader: $SELECTED_BOOTLOADER"
         sleep 1
     fi
@@ -106,8 +102,8 @@ kernel_selection() {
     gum style --foreground 212 "Kernel Selection"
     echo ""
     
-    if [ -f "/tmp/flameos/kernel" ]; then
-        gum style --foreground 46 "Current kernel: $(cat /tmp/flameos/kernel)"
+    if [ -f "/tmp/asiraos/kernel" ]; then
+        gum style --foreground 46 "Current kernel: $(cat /tmp/asiraos/kernel)"
         echo ""
     fi
     
@@ -116,7 +112,7 @@ kernel_selection() {
     SELECTED_KERNEL=$(gum choose --cursor-prefix "> " --selected-prefix "* " "${KERNELS[@]}")
     
     if [ -n "$SELECTED_KERNEL" ]; then
-        echo "$SELECTED_KERNEL" > /tmp/flameos/kernel
+        echo "$SELECTED_KERNEL" > /tmp/asiraos/kernel
         gum style --foreground 46 "Selected kernel: $SELECTED_KERNEL"
         sleep 1
     fi
@@ -136,15 +132,15 @@ hostname_selection() {
     gum style --foreground 212 "Hostname Selection"
     echo ""
     
-    if [ -f "/tmp/flameos/hostname" ]; then
-        gum style --foreground 46 "Current hostname: $(cat /tmp/flameos/hostname)"
+    if [ -f "/tmp/asiraos/hostname" ]; then
+        gum style --foreground 46 "Current hostname: $(cat /tmp/asiraos/hostname)"
         echo ""
     fi
     
-    HOSTNAME=$(gum input --placeholder "Enter hostname (e.g., flameos-pc)")
+    HOSTNAME=$(gum input --placeholder "Enter hostname (e.g., asiraos-pc)")
     
     if [ -n "$HOSTNAME" ]; then
-        echo "$HOSTNAME" > /tmp/flameos/hostname
+        echo "$HOSTNAME" > /tmp/asiraos/hostname
         gum style --foreground 46 "Selected hostname: $HOSTNAME"
         sleep 1
     fi
@@ -164,8 +160,8 @@ desktop_selection() {
     gum style --foreground 212 "Desktop Environment Selection"
     echo ""
     
-    if [ -f "/tmp/flameos/desktop" ]; then
-        gum style --foreground 46 "Current desktop: $(cat /tmp/flameos/desktop)"
+    if [ -f "/tmp/asiraos/desktop" ]; then
+        gum style --foreground 46 "Current desktop: $(cat /tmp/asiraos/desktop)"
         echo ""
     fi
     
@@ -174,7 +170,7 @@ desktop_selection() {
     SELECTED_DESKTOP=$(gum choose --cursor-prefix "> " --selected-prefix "* " "${DESKTOPS[@]}")
     
     if [ -n "$SELECTED_DESKTOP" ]; then
-        echo "$SELECTED_DESKTOP" > /tmp/flameos/desktop
+        echo "$SELECTED_DESKTOP" > /tmp/asiraos/desktop
         gum style --foreground 46 "Selected desktop: $SELECTED_DESKTOP"
         sleep 1
     fi
@@ -194,8 +190,8 @@ mirror_selection() {
     gum style --foreground 212 "Mirror Selection"
     echo ""
     
-    if [ -f "/tmp/flameos/mirror" ]; then
-        MIRROR_COUNTRY=$(cat /tmp/flameos/mirror_country 2>/dev/null || echo "Unknown")
+    if [ -f "/tmp/asiraos/mirror" ]; then
+        MIRROR_COUNTRY=$(cat /tmp/asiraos/mirror_country 2>/dev/null || echo "Unknown")
         gum style --foreground 46 "Current mirror: $MIRROR_COUNTRY"
         echo ""
     fi
@@ -261,16 +257,16 @@ mirror_selection() {
         if [ "$SELECTED_COUNTRY" = "India" ] && [ ${#INDIA_MIRRORS[@]} -gt 0 ]; then
             # Add all Indian mirrors to mirrorlist
             gum style --foreground 205 "Adding all Indian mirrors..."
-            > /tmp/flameos/mirror
+            > /tmp/asiraos/mirror
             for i in "${!INDIA_MIRRORS[@]}"; do
-                echo "Server = ${INDIA_MIRRORS[$i]}" >> /tmp/flameos/mirror
+                echo "Server = ${INDIA_MIRRORS[$i]}" >> /tmp/asiraos/mirror
             done
-            echo "$SELECTED_COUNTRY" > /tmp/flameos/mirror_country
+            echo "$SELECTED_COUNTRY" > /tmp/asiraos/mirror_country
             gum style --foreground 46 "Added ${#INDIA_MIRRORS[@]} Indian mirrors"
         else
             SELECTED_MIRROR="${COUNTRY_MIRRORS[$SELECTED_COUNTRY]}"
-            echo "Server = $SELECTED_MIRROR" > /tmp/flameos/mirror
-            echo "$SELECTED_COUNTRY" > /tmp/flameos/mirror_country
+            echo "Server = $SELECTED_MIRROR" > /tmp/asiraos/mirror
+            echo "$SELECTED_COUNTRY" > /tmp/asiraos/mirror_country
             gum style --foreground 46 "Selected mirror: $SELECTED_COUNTRY"
         fi
         sleep 1
@@ -291,8 +287,8 @@ timezone_selection() {
     gum style --foreground 212 "Timezone Selection"
     echo ""
     
-    if [ -f "/tmp/flameos/timezone" ]; then
-        gum style --foreground 46 "Current timezone: $(cat /tmp/flameos/timezone)"
+    if [ -f "/tmp/asiraos/timezone" ]; then
+        gum style --foreground 46 "Current timezone: $(cat /tmp/asiraos/timezone)"
         echo ""
     fi
     
@@ -319,7 +315,7 @@ timezone_selection() {
     SELECTED_TIMEZONE=$(printf '%s\n' "${TIMEZONES[@]}" | gum filter --placeholder="Search timezones (e.g., Asia/Kolkata, Europe/London)..." || true)
     
     if [ -n "$SELECTED_TIMEZONE" ]; then
-        echo "$SELECTED_TIMEZONE" > /tmp/flameos/timezone
+        echo "$SELECTED_TIMEZONE" > /tmp/asiraos/timezone
         gum style --foreground 46 "Selected timezone: $SELECTED_TIMEZONE"
         sleep 1
     fi
@@ -336,10 +332,10 @@ timezone_selection() {
 # Install System
 install_system() {
     show_banner
-    gum style --foreground 212 "Install FLAME OS"
+    gum style --foreground 212 "Install AsiraOS"
     echo ""
     
-    gum style --foreground 205 "Ready to install FLAME OS with your configuration!"
+    gum style --foreground 205 "Ready to install AsiraOS with your configuration!"
     echo ""
     
     CONFIRM=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
@@ -361,16 +357,16 @@ install_system() {
 # Perform the actual installation
 perform_installation() {
     show_banner
-    gum style --foreground 212 "Installing FLAME OS..."
+    gum style --foreground 212 "Installing AsiraOS..."
     echo ""
     
     # Load configuration
-    KERNEL=$(cat /tmp/flameos/kernel 2>/dev/null || echo "linux")
-    HOSTNAME=$(cat /tmp/flameos/hostname 2>/dev/null || echo "flameos")
-    DESKTOP=$(cat /tmp/flameos/desktop 2>/dev/null || echo "None (CLI only)")
-    TIMEZONE=$(cat /tmp/flameos/timezone 2>/dev/null || echo "UTC")
-    LOCALE=$(cat /tmp/flameos/locale 2>/dev/null || echo "en_US.UTF-8")
-    MIRROR=$(cat /tmp/flameos/mirror 2>/dev/null)
+    KERNEL=$(cat /tmp/asiraos/kernel 2>/dev/null || echo "linux")
+    HOSTNAME=$(cat /tmp/asiraos/hostname 2>/dev/null || echo "asiraos")
+    DESKTOP=$(cat /tmp/asiraos/desktop 2>/dev/null || echo "None (CLI only)")
+    TIMEZONE=$(cat /tmp/asiraos/timezone 2>/dev/null || echo "UTC")
+    LOCALE=$(cat /tmp/asiraos/locale 2>/dev/null || echo "en_US.UTF-8")
+    MIRROR=$(cat /tmp/asiraos/mirror 2>/dev/null)
     
     # Mount partitions
     gum style --foreground 205 "Mounting partitions..."
@@ -379,7 +375,7 @@ perform_installation() {
     umount -R /mnt 2>/dev/null || true
     
     # Mount root partition first
-    ROOT_PARTITION=$(grep " -> /$" /tmp/flameos/mounts | cut -d' ' -f1 | head -1)
+    ROOT_PARTITION=$(grep " -> /$" /tmp/asiraos/mounts | cut -d' ' -f1 | head -1)
     if [ -n "$ROOT_PARTITION" ]; then
         gum style --foreground 46 "Mounting root: $ROOT_PARTITION -> /mnt"
         mount "$ROOT_PARTITION" /mnt
@@ -408,10 +404,10 @@ perform_installation() {
         else
             mount "$PARTITION" "/mnt$MOUNTPOINT"
         fi
-    done < /tmp/flameos/mounts
+    done < /tmp/asiraos/mounts
     
     # Enable swap if configured
-    SWAP_PARTITION=$(grep " -> swap$" /tmp/flameos/mounts | cut -d' ' -f1 | head -1)
+    SWAP_PARTITION=$(grep " -> swap$" /tmp/asiraos/mounts | cut -d' ' -f1 | head -1)
     if [ -n "$SWAP_PARTITION" ]; then
         gum style --foreground 46 "Enabling swap: $SWAP_PARTITION"
         swapon "$SWAP_PARTITION"
@@ -430,9 +426,9 @@ perform_installation() {
     pacstrap /mnt grub efibootmgr os-prober --noconfirm --needed
     
     # Find EFI partition
-    EFI_PARTITION=$(grep "/boot/efi" /tmp/flameos/mounts | cut -d' ' -f1 | head -1)
+    EFI_PARTITION=$(grep "/boot/efi" /tmp/asiraos/mounts | cut -d' ' -f1 | head -1)
     if [ -n "$EFI_PARTITION" ]; then
-        arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=FLAMEOS
+        arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=ASIRAOS
         arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
     fi
     
@@ -443,26 +439,26 @@ perform_installation() {
     # Step 5: Chroot and continue installation
     gum style --foreground 205 "Step 5/5: Configuring system..."
     
-    # Copy desktop scripts and FlameOS configuration
+    # Copy desktop scripts and AsiraOS configuration
     cp -r ./modules /mnt/
     chmod +x /mnt/modules/*.sh
     
-    # Copy FlameOS configuration script
-    cp ./lib/flameos-config.sh /mnt/
-    chmod +x /mnt/flameos-config.sh
+    # Copy AsiraOS configuration script
+    cp ./lib/asiraos-config.sh /mnt/
+    chmod +x /mnt/asiraos-config.sh
     
-    # Copy FlameOS logo - check if /boot/efi is mounted separately
-    if grep -q "/boot/efi" /tmp/flameos/mounts; then
+    # Copy AsiraOS logo - check if /boot/efi is mounted separately
+    if grep -q "/boot/efi" /tmp/asiraos/mounts; then
         mkdir -p /mnt/efi/grub/themes/shared
-        cp ./flameos.png /mnt/efi/grub/themes/shared/
+        cp ./asiraos.png /mnt/efi/grub/themes/shared/
     else
         mkdir -p /mnt/boot/grub/themes/shared
-        cp ./flameos.png /mnt/boot/grub/themes/shared/
+        cp ./asiraos.png /mnt/boot/grub/themes/shared/
     fi
     
     # Install additional packages if selected
-    if [ -f "/tmp/flameos/packages" ]; then
-        PACKAGES=$(cat /tmp/flameos/packages | tr '\n' ' ')
+    if [ -f "/tmp/asiraos/packages" ]; then
+        PACKAGES=$(cat /tmp/asiraos/packages | tr '\n' ' ')
         if [ -n "$PACKAGES" ]; then
             pacstrap /mnt $PACKAGES --noconfirm --needed
         fi
@@ -473,8 +469,8 @@ perform_installation() {
 #!/bin/bash
 
 # Set mirror if selected
-if [ -f "/tmp/flameos/mirror" ]; then
-    cp /tmp/flameos/mirror /etc/pacman.d/mirrorlist
+if [ -f "/tmp/asiraos/mirror" ]; then
+    cp /tmp/asiraos/mirror /etc/pacman.d/mirrorlist
 fi
 
 # Create user
@@ -506,8 +502,8 @@ EOF
 systemctl enable NetworkManager
 systemctl enable bluetooth
 
-# Configure FlameOS system
-bash /flameos-config.sh
+# Configure AsiraOS system
+bash /asiraos-config.sh
 
 # Desktop environment installation
 case "$DESKTOP" in  
@@ -539,11 +535,11 @@ REALEND
     
     # Cleanup
     rm /mnt/next.sh
-    rm /mnt/flameos-config.sh
+    rm /mnt/asiraos-config.sh
     rm -rf /mnt/modules
     
     gum style --foreground 46 "Installation completed successfully!"
-    gum style --foreground 205 "FlameOS has been installed successfully!"
+    gum style --foreground 205 "AsiraOS has been installed successfully!"
     echo ""
     
     CHOICE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \

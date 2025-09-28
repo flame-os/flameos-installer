@@ -1,8 +1,4 @@
 #!/bin/bash
-# FlameOS - The Future of Linux
-# Copyright (c) 2024 FlameOS Team
-# https://flame-os.github.io
-# Licensed under GPL-3.0
 
 
 # Text Size Configuration
@@ -56,7 +52,7 @@ main_menu() {
             configure_text_size
             ;;
         "Exit")
-            echo -e "${GREEN}Thank you for using FLAME OS Installer!${NC}"
+            echo -e "${GREEN}Thank you for using AsiraOS Installer!${NC}"
             exit 0
             ;;
     esac

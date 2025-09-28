@@ -1,8 +1,4 @@
 #!/bin/bash
-# FlameOS - The Future of Linux
-# Copyright (c) 2024 FlameOS Team
-# https://flame-os.github.io
-# Licensed under GPL-3.0
 
 
 # Advanced Setup Menu
@@ -23,36 +19,36 @@ advanced_setup() {
     fi
     
     # Disk mountpoints
-    if [ -f "/tmp/flameos/mounts" ]; then
+    if [ -f "/tmp/asiraos/mounts" ]; then
         gum style --foreground 46 "✓ Disk: Configured"
     else
         gum style --foreground 196 "✗ Disk: Not configured"
     fi
     
     # Locale
-    if [ -f "/tmp/flameos/locale" ]; then
-        gum style --foreground 46 "✓ Locale: $(cat /tmp/flameos/locale)"
+    if [ -f "/tmp/asiraos/locale" ]; then
+        gum style --foreground 46 "✓ Locale: $(cat /tmp/asiraos/locale)"
     else
         gum style --foreground 196 "✗ Locale: Not selected"
     fi
     
     # Swap
-    if [ -f "/tmp/flameos/swap" ]; then
-        gum style --foreground 46 "✓ Swap: $(cat /tmp/flameos/swap)"
+    if [ -f "/tmp/asiraos/swap" ]; then
+        gum style --foreground 46 "✓ Swap: $(cat /tmp/asiraos/swap)"
     else
         gum style --foreground 196 "✗ Swap: Not configured"
     fi
     
     # Bootloader
-    if [ -f "/tmp/flameos/bootloader" ]; then
-        gum style --foreground 46 "✓ Bootloader: $(cat /tmp/flameos/bootloader)"
+    if [ -f "/tmp/asiraos/bootloader" ]; then
+        gum style --foreground 46 "✓ Bootloader: $(cat /tmp/asiraos/bootloader)"
     else
         gum style --foreground 196 "✗ Bootloader: Not selected"
     fi
     
     # Kernel
-    if [ -f "/tmp/flameos/kernel" ]; then
-        gum style --foreground 46 "✓ Kernel: $(cat /tmp/flameos/kernel)"
+    if [ -f "/tmp/asiraos/kernel" ]; then
+        gum style --foreground 46 "✓ Kernel: $(cat /tmp/asiraos/kernel)"
     else
         gum style --foreground 196 "✗ Kernel: Not selected"
     fi
@@ -65,38 +61,38 @@ advanced_setup() {
     fi
     
     # Hostname
-    if [ -f "/tmp/flameos/hostname" ]; then
-        gum style --foreground 46 "✓ Hostname: $(cat /tmp/flameos/hostname)"
+    if [ -f "/tmp/asiraos/hostname" ]; then
+        gum style --foreground 46 "✓ Hostname: $(cat /tmp/asiraos/hostname)"
     else
         gum style --foreground 196 "✗ Hostname: Not set"
     fi
     
     # Desktop Environment
-    if [ -f "/tmp/flameos/desktop" ]; then
-        gum style --foreground 46 "✓ Desktop: $(cat /tmp/flameos/desktop)"
+    if [ -f "/tmp/asiraos/desktop" ]; then
+        gum style --foreground 46 "✓ Desktop: $(cat /tmp/asiraos/desktop)"
     else
         gum style --foreground 196 "✗ Desktop: Not selected"
     fi
     
     # Mirror
-    if [ -f "/tmp/flameos/mirror" ]; then
-        MIRROR_NAME=$(basename "$(cat /tmp/flameos/mirror)" | cut -d'/' -f3)
+    if [ -f "/tmp/asiraos/mirror" ]; then
+        MIRROR_NAME=$(basename "$(cat /tmp/asiraos/mirror)" | cut -d'/' -f3)
         gum style --foreground 46 "✓ Mirror: $MIRROR_NAME"
     else
         gum style --foreground 196 "✗ Mirror: Not selected"
     fi
     
     # Packages
-    if [ -f "/tmp/flameos/packages" ]; then
-        PACKAGE_COUNT=$(sort /tmp/flameos/packages | uniq | wc -l)
+    if [ -f "/tmp/asiraos/packages" ]; then
+        PACKAGE_COUNT=$(sort /tmp/asiraos/packages | uniq | wc -l)
         gum style --foreground 46 "✓ Packages: $PACKAGE_COUNT selected"
     else
         gum style --foreground 196 "✗ Packages: None selected"
     fi
     
     # Timezone
-    if [ -f "/tmp/flameos/timezone" ]; then
-        gum style --foreground 46 "✓ Timezone: $(cat /tmp/flameos/timezone)"
+    if [ -f "/tmp/asiraos/timezone" ]; then
+        gum style --foreground 46 "✓ Timezone: $(cat /tmp/asiraos/timezone)"
     else
         gum style --foreground 196 "✗ Timezone: Not selected"
     fi

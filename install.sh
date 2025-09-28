@@ -1,11 +1,11 @@
 #!/bin/bash
-# FlameOS - The Future of Linux
-# Copyright (c) 2024 FlameOS Team
-# https://flame-os.github.io
+# AsiraOS - The Future of Linux
+# Copyright (c) 2024 AsiraOS Team
+# https://asiraos.github.io
 # Licensed under GPL-3.0
 
 
-# FlameOS Installer - Main Script
+# AsiraOS Installer - Main Script
 set -e
 
 # Counter for quit attempts
@@ -47,8 +47,8 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Create temp directory for installer data
-mkdir -p /tmp/flameos
-chmod 755 /tmp/flameos
+mkdir -p /tmp/asiraos
+chmod 755 /tmp/asiraos
 
 # Check if gum is installed
 if ! command -v gum &> /dev/null; then

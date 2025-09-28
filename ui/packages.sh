@@ -1,8 +1,4 @@
 #!/bin/bash
-# FlameOS - The Future of Linux
-# Copyright (c) 2024 FlameOS Team
-# https://flame-os.github.io
-# Licensed under GPL-3.0
 
 
 # Package Selection
@@ -12,9 +8,9 @@ package_selection() {
     echo ""
     
     # Show currently selected packages (unique only)
-    if [ -f "/tmp/flameos/packages" ]; then
+    if [ -f "/tmp/asiraos/packages" ]; then
         gum style --foreground 212 "Selected packages:"
-        sort /tmp/flameos/packages | uniq | tr '\n' ' '
+        sort /tmp/asiraos/packages | uniq | tr '\n' ' '
         echo ""
         echo ""
     fi
@@ -30,7 +26,7 @@ package_selection() {
             search_and_add_package
             ;;
         "Clear All Packages")
-            rm -f /tmp/flameos/packages
+            rm -f /tmp/asiraos/packages
             gum style --foreground 205 "All packages cleared"
             sleep 1
             package_selection
@@ -65,8 +61,8 @@ search_and_add_package() {
     
     if [ -n "$SELECTED_PACKAGE" ] && [ "$SELECTED_PACKAGE" != "" ]; then
         # Add to selected packages (avoid duplicates)
-        if ! grep -q "^$SELECTED_PACKAGE$" /tmp/flameos/packages 2>/dev/null; then
-            echo "$SELECTED_PACKAGE" >> /tmp/flameos/packages
+        if ! grep -q "^$SELECTED_PACKAGE$" /tmp/asiraos/packages 2>/dev/null; then
+            echo "$SELECTED_PACKAGE" >> /tmp/asiraos/packages
             gum style --foreground 46 "Added: $SELECTED_PACKAGE"
             sleep 1
         else

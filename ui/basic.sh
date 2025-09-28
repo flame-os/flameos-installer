@@ -1,8 +1,4 @@
 #!/bin/bash
-# FlameOS - The Future of Linux
-# Copyright (c) 2024 FlameOS Team
-# https://flame-os.github.io
-# Licensed under GPL-3.0
 
 
 # Basic Setup Menu - Automatic step-by-step configuration
@@ -56,7 +52,7 @@ basic_step_3_locale() {
     echo ""
     
     # Set default locale and continue
-    echo "en_US.UTF-8" > /tmp/flameos/locale
+    echo "en_US.UTF-8" > /tmp/asiraos/locale
     gum style --foreground 46 "✓ Locale set to: en_US.UTF-8"
     sleep 1
     basic_step_4_mirror

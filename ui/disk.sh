@@ -1,8 +1,4 @@
 #!/bin/bash
-# FlameOS - The Future of Linux
-# Copyright (c) 2024 FlameOS Team
-# https://flame-os.github.io
-# Licensed under GPL-3.0
 
 
 # Disk Selection
@@ -12,20 +8,20 @@ disk_selection() {
     echo ""
     
     # Show selected mountpoints under title
-    if [ -f "/tmp/flameos/mounts" ]; then
+    if [ -f "/tmp/asiraos/mounts" ]; then
         echo -e "${GREEN}Selected Mountpoints:${NC}"
-        cat /tmp/flameos/mounts
+        cat /tmp/asiraos/mounts
         echo ""
     fi
     
     # Check if we have root and boot partitions
     HAS_ROOT=false
     HAS_BOOT=false
-    if [ -f "/tmp/flameos/mounts" ]; then
-        if grep -q " -> /$" /tmp/flameos/mounts; then
+    if [ -f "/tmp/asiraos/mounts" ]; then
+        if grep -q " -> /$" /tmp/asiraos/mounts; then
             HAS_ROOT=true
         fi
-        if grep -q " -> /boot" /tmp/flameos/mounts; then
+        if grep -q " -> /boot" /tmp/asiraos/mounts; then
             HAS_BOOT=true
         fi
     fi
@@ -34,7 +30,7 @@ disk_selection() {
     MENU_OPTIONS=("Auto Partition" "Custom Partition Setup")
     
     # Add clear option if mounts exist
-    if [ -f "/tmp/flameos/mounts" ]; then
+    if [ -f "/tmp/asiraos/mounts" ]; then
         MENU_OPTIONS+=("Clear All Mountpoints")
     fi
     
@@ -55,7 +51,7 @@ disk_selection() {
             auto_partition
             ;;
         "Clear All Mountpoints")
-            rm -f /tmp/flameos/mounts
+            rm -f /tmp/asiraos/mounts
             gum style --foreground 46 "All mountpoints cleared"
             sleep 1
             disk_selection
@@ -68,7 +64,7 @@ disk_selection() {
             umount -R /mnt 2>/dev/null || true
             
             # Mount root partition first
-            ROOT_PARTITION=$(grep " -> /$" /tmp/flameos/mounts | cut -d' ' -f1 | head -1)
+            ROOT_PARTITION=$(grep " -> /$" /tmp/asiraos/mounts | cut -d' ' -f1 | head -1)
             if [ -n "$ROOT_PARTITION" ]; then
                 gum style --foreground 46 "Mounting root: $ROOT_PARTITION -> /mnt"
                 mount "$ROOT_PARTITION" /mnt
@@ -93,7 +89,7 @@ disk_selection() {
                 else
                     mount "$PARTITION" "/mnt$MOUNTPOINT"
                 fi
-            done < /tmp/flameos/mounts
+            done < /tmp/asiraos/mounts
             
             gum style --foreground 46 "✓ All partitions mounted successfully"
             sleep 1
@@ -120,9 +116,9 @@ disk_overview() {
     echo -e "${CYAN}Disk Overview${NC}"
     echo ""
     
-    if [ -f "/tmp/flameos/mounts" ]; then
+    if [ -f "/tmp/asiraos/mounts" ]; then
         echo -e "${GREEN}Selected Mountpoints:${NC}"
-        cat /tmp/flameos/mounts
+        cat /tmp/asiraos/mounts
         echo ""
     else
         echo -e "${YELLOW}No mountpoints configured yet${NC}"
@@ -317,7 +313,7 @@ set_mountpoints() {
     fi
     
     # Check if mountpoint already exists
-    if grep -q " -> $MOUNTPOINT$" /tmp/flameos/mounts 2>/dev/null; then
+    if grep -q " -> $MOUNTPOINT$" /tmp/asiraos/mounts 2>/dev/null; then
         gum style --foreground 196 "Mountpoint $MOUNTPOINT already exists!"
         gum input --placeholder "Press Enter to try again..."
         set_mountpoints "$disk"
@@ -325,7 +321,7 @@ set_mountpoints() {
     fi
     
     # Save mountpoint configuration
-    echo "/dev/$PARTITION -> $MOUNTPOINT" >> /tmp/flameos/mounts
+    echo "/dev/$PARTITION -> $MOUNTPOINT" >> /tmp/asiraos/mounts
     echo -e "${GREEN}Mountpoint set: /dev/$PARTITION -> $MOUNTPOINT${NC}"
     
     CHOICE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
@@ -520,8 +516,8 @@ create_basic_partitions() {
         echo -e "${CYAN}Formatting root partition: /dev/${disk_name}p$((part_num + 1))${NC}"
         mkfs.ext4 /dev/${disk_name}p$((part_num + 1))
         
-        echo "/dev/${disk_name}p${part_num} -> /boot/efi" >> /tmp/flameos/mounts
-        echo "/dev/${disk_name}p$((part_num + 1)) -> /" >> /tmp/flameos/mounts
+        echo "/dev/${disk_name}p${part_num} -> /boot/efi" >> /tmp/asiraos/mounts
+        echo "/dev/${disk_name}p$((part_num + 1)) -> /" >> /tmp/asiraos/mounts
     else
         # User selected whole disk - wipe and create new partition table
         echo -e "${YELLOW}Wiping disk ${partition}...${NC}"
@@ -536,11 +532,11 @@ create_basic_partitions() {
         
         # Save mountpoints with proper partition naming
         if [[ "$partition" =~ nvme ]]; then
-            echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/flameos/mounts
-            echo "/dev/${partition}p2 -> /" >> /tmp/flameos/mounts
+            echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/asiraos/mounts
+            echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
         else
-            echo "/dev/${partition}1 -> /boot/efi" >> /tmp/flameos/mounts
-            echo "/dev/${partition}2 -> /" >> /tmp/flameos/mounts
+            echo "/dev/${partition}1 -> /boot/efi" >> /tmp/asiraos/mounts
+            echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
         fi
     fi
     
@@ -576,19 +572,19 @@ create_standard_partitions() {
     # Check if user selected a whole disk or existing partition
     if [[ "$partition" =~ p[0-9]+$ ]]; then
         # User selected existing partition - use it as root
-        echo "/dev/${partition} -> /" >> /tmp/flameos/mounts
+        echo "/dev/${partition} -> /" >> /tmp/asiraos/mounts
         echo -e "${YELLOW}Note: Using existing partition ${partition} as root${NC}"
         echo -e "${YELLOW}Please manually set boot and home partitions if needed${NC}"
     else
         # User selected whole disk - create new partitions
         if [[ "$partition" =~ nvme ]]; then
-            echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/flameos/mounts
-            echo "/dev/${partition}p2 -> /" >> /tmp/flameos/mounts
-            echo "/dev/${partition}p3 -> /home" >> /tmp/flameos/mounts
+            echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/asiraos/mounts
+            echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
+            echo "/dev/${partition}p3 -> /home" >> /tmp/asiraos/mounts
         else
-            echo "/dev/${partition}1 -> /boot/efi" >> /tmp/flameos/mounts
-            echo "/dev/${partition}2 -> /" >> /tmp/flameos/mounts
-            echo "/dev/${partition}3 -> /home" >> /tmp/flameos/mounts
+            echo "/dev/${partition}1 -> /boot/efi" >> /tmp/asiraos/mounts
+            echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
+            echo "/dev/${partition}3 -> /home" >> /tmp/asiraos/mounts
         fi
     fi
     
@@ -606,18 +602,18 @@ create_custom_partitions() {
     # Check if user selected a whole disk or existing partition
     if [[ "$partition" =~ p[0-9]+$ ]]; then
         # User selected existing partition - use it as root
-        echo "/dev/${partition} -> /" >> /tmp/flameos/mounts
+        echo "/dev/${partition} -> /" >> /tmp/asiraos/mounts
         echo -e "${YELLOW}Note: Using existing partition ${partition} as root${NC}"
     else
         # User selected whole disk - create new partitions
         if [[ "$partition" =~ nvme ]]; then
-            echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/flameos/mounts
-            echo "/dev/${partition}p2 -> /" >> /tmp/flameos/mounts
+            echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/asiraos/mounts
+            echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
             local part_prefix="p"
             local base_partition="$partition"
         else
-            echo "/dev/${partition}1 -> /boot/efi" >> /tmp/flameos/mounts
-            echo "/dev/${partition}2 -> /" >> /tmp/flameos/mounts
+            echo "/dev/${partition}1 -> /boot/efi" >> /tmp/asiraos/mounts
+            echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
             local part_prefix=""
             local base_partition="$partition"
         fi
@@ -633,22 +629,22 @@ create_custom_partitions() {
         
         if [[ $ADDITIONAL_PARTITIONS == *"Home partition"* ]]; then
             echo -e "${CYAN}- Home partition (20GB)${NC}"
-            echo "/dev/${base_partition}${part_prefix}${part_num} -> /home" >> /tmp/flameos/mounts
+            echo "/dev/${base_partition}${part_prefix}${part_num} -> /home" >> /tmp/asiraos/mounts
             ((part_num++))
         fi
         if [[ $ADDITIONAL_PARTITIONS == *"Swap partition"* ]]; then
             echo -e "${CYAN}- Swap partition (4GB)${NC}"
-            echo "/dev/${base_partition}${part_prefix}${part_num} -> swap" >> /tmp/flameos/mounts
+            echo "/dev/${base_partition}${part_prefix}${part_num} -> swap" >> /tmp/asiraos/mounts
             ((part_num++))
         fi
         if [[ $ADDITIONAL_PARTITIONS == *"Var partition"* ]]; then
             echo -e "${CYAN}- Var partition (10GB)${NC}"
-            echo "/dev/${base_partition}${part_prefix}${part_num} -> /var" >> /tmp/flameos/mounts
+            echo "/dev/${base_partition}${part_prefix}${part_num} -> /var" >> /tmp/asiraos/mounts
             ((part_num++))
         fi
         if [[ $ADDITIONAL_PARTITIONS == *"Tmp partition"* ]]; then
             echo -e "${CYAN}- Tmp partition (5GB)${NC}"
-            echo "/dev/${base_partition}${part_prefix}${part_num} -> /tmp" >> /tmp/flameos/mounts
+            echo "/dev/${base_partition}${part_prefix}${part_num} -> /tmp" >> /tmp/asiraos/mounts
             ((part_num++))
         fi
     fi
@@ -679,8 +675,8 @@ create_basic_partitions_freespace() {
     local disk=$1
     
     # FORCE CLEAR ALL MOUNTS
-    rm -rf /tmp/flameos
-    mkdir -p /tmp/flameos
+    rm -rf /tmp/asiraos
+    mkdir -p /tmp/asiraos
     
     echo -e "${RED}=== EXISTING PARTITIONS ===${NC}"
     lsblk /dev/$disk
@@ -794,13 +790,13 @@ create_basic_partitions_freespace() {
     mkfs.ext4 $NEW_ROOT_DEV
     
     # Save ONLY the NEW partitions - ALWAYS create this file
-    mkdir -p /tmp/flameos
-    echo "$NEW_BOOT_DEV -> /boot/efi" > /tmp/flameos/mounts
-    echo "$NEW_ROOT_DEV -> /" >> /tmp/flameos/mounts
+    mkdir -p /tmp/asiraos
+    echo "$NEW_BOOT_DEV -> /boot/efi" > /tmp/asiraos/mounts
+    echo "$NEW_ROOT_DEV -> /" >> /tmp/asiraos/mounts
     
     echo -e "${GREEN}=== FINAL MOUNTS ===${NC}"
-    if [ -f /tmp/flameos/mounts ]; then
-        cat /tmp/flameos/mounts
+    if [ -f /tmp/asiraos/mounts ]; then
+        cat /tmp/asiraos/mounts
     else
         echo "ERROR: Mounts file not created!"
     fi
@@ -815,8 +811,8 @@ create_standard_partitions_freespace() {
     echo -e "${CYAN}Creating standard partitions in free space on /dev/${disk}...${NC}"
     
     # Clear any existing mounts to avoid conflicts
-    rm -f /tmp/flameos/mounts
-    mkdir -p /tmp/flameos
+    rm -f /tmp/asiraos/mounts
+    mkdir -p /tmp/asiraos
     
     # Get free space info
     FREE_START=$(parted /dev/$disk print free 2>/dev/null | grep "Free Space" | tail -1 | awk '{print $1}')
@@ -872,9 +868,9 @@ create_standard_partitions_freespace() {
     mkfs.ext4 $HOME_DEV
     
     # Save mountpoints
-    echo "$BOOT_DEV -> /boot/efi" >> /tmp/flameos/mounts
-    echo "$ROOT_DEV -> /" >> /tmp/flameos/mounts
-    echo "$HOME_DEV -> /home" >> /tmp/flameos/mounts
+    echo "$BOOT_DEV -> /boot/efi" >> /tmp/asiraos/mounts
+    echo "$ROOT_DEV -> /" >> /tmp/asiraos/mounts
+    echo "$HOME_DEV -> /home" >> /tmp/asiraos/mounts
     
     echo -e "${GREEN}Standard partitions created successfully in free space${NC}"
     partition_complete
@@ -886,8 +882,8 @@ create_custom_partitions_freespace() {
     echo -e "${CYAN}Creating custom partitions in free space on /dev/${disk}...${NC}"
     
     # Clear any existing mounts to avoid conflicts
-    rm -f /tmp/flameos/mounts
-    mkdir -p /tmp/flameos
+    rm -f /tmp/asiraos/mounts
+    mkdir -p /tmp/asiraos
     
     # Get free space info
     FREE_START=$(parted /dev/$disk print free 2>/dev/null | grep "Free Space" | tail -1 | awk '{print $1}')
@@ -939,8 +935,8 @@ create_custom_partitions_freespace() {
     esac
     
     # Save basic mountpoints
-    echo "$BOOT_DEV -> /boot/efi" >> /tmp/flameos/mounts
-    echo "$ROOT_DEV -> /" >> /tmp/flameos/mounts
+    echo "$BOOT_DEV -> /boot/efi" >> /tmp/asiraos/mounts
+    echo "$ROOT_DEV -> /" >> /tmp/asiraos/mounts
     
     echo -e "${GREEN}Custom partitions created successfully in free space${NC}"
     partition_complete
