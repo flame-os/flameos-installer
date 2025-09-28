@@ -27,7 +27,7 @@ disk_selection() {
     fi
     
     # Build menu options
-    MENU_OPTIONS=("Auto Partition" "Custom Partition Setup")
+    MENU_OPTIONS=("Auto Partition (Recommended)" "Custom Partition Setup")
     
     # Add clear option if mounts exist
     if [ -f "/tmp/asiraos/mounts" ]; then
@@ -101,11 +101,7 @@ disk_selection() {
             fi
             ;;
         "Go Back to Previous Menu")
-            if [ "$BASIC_MODE" = true ]; then
-                main_menu
-            else
-                advanced_setup
-            fi
+            disk_selection
             ;;
     esac
 }
@@ -355,7 +351,8 @@ auto_partition() {
     
     # Get disks and their partitions in tree format
     while IFS= read -r line; do
-        NAME=$(echo "$line" | awk '{print $1}')
+        RAW_NAME=$(echo "$line" | awk '{print $1}')
+        NAME=$(echo "$RAW_NAME" | sed 's/[├└─│ ]//g')  # Clean tree characters
         SIZE=$(echo "$line" | awk '{print $4}')
         TYPE=$(echo "$line" | awk '{print $6}')
         

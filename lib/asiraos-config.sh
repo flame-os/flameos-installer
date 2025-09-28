@@ -38,12 +38,9 @@ EOF
   
   # Add AsiraOS pacman repository
   if ! grep -q "\[asiraos-core\]" /etc/pacman.conf; then
-    cat >> /etc/pacman.conf << 'EOF'
+sed -i '/^\[core\]/i \
+[asiraos-core]\nSigLevel = Optional TrustAll\nServer = https://asiraos.github.io/core/$arch\n' /etc/pacman.conf
 
-[asiraos-core]
-SigLevel = Optional DatabaseOptional
-Server = https://asiraos.github.io/core/$arch
-EOF
   fi
   
   # Configure GRUB theme script
