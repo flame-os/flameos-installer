@@ -440,20 +440,36 @@ perform_installation() {
     gum style --foreground 205 "Step 5/5: Configuring system..."
     
     # Copy desktop scripts and AsiraOS configuration
-    cp -r ./modules /mnt/
-    chmod +x /mnt/modules/*.sh
+    if [ -d "modules" ]; then
+        cp -r modules /mnt/
+        chmod +x /mnt/modules/*.sh
+        gum style --foreground 46 "Copied modules directory"
+    else
+        gum style --foreground 196 "Error: modules directory not found"
+    fi
     
     # Copy AsiraOS configuration script
-    cp ./lib/asiraos-config.sh /mnt/
-    chmod +x /mnt/asiraos-config.sh
+    if [ -f "lib/asiraos-config.sh" ]; then
+        cp lib/asiraos-config.sh /mnt/
+        chmod +x /mnt/asiraos-config.sh
+        gum style --foreground 46 "Copied asiraos-config.sh"
+    else
+        gum style --foreground 196 "Error: lib/asiraos-config.sh not found"
+    fi
     
     # Copy AsiraOS logo - check if /boot/efi is mounted separately
-    if grep -q "/boot/efi" /tmp/asiraos/mounts; then
-        mkdir -p /mnt/efi/grub/themes/shared
-        cp ./asiraos.png /mnt/efi/grub/themes/shared/
+    if [ -f "lib/asiraos.png" ]; then
+        if grep -q "/boot/efi" /tmp/asiraos/mounts; then
+            mkdir -p /mnt/efi/grub/themes/shared
+            cp lib/asiraos.png /mnt/efi/grub/themes/shared/
+            gum style --foreground 46 "Copied asiraos.png to /efi/grub/themes/shared/"
+        else
+            mkdir -p /mnt/boot/grub/themes/shared
+            cp lib/asiraos.png /mnt/boot/grub/themes/shared/
+            gum style --foreground 46 "Copied asiraos.png to /boot/grub/themes/shared/"
+        fi
     else
-        mkdir -p /mnt/boot/grub/themes/shared
-        cp ./asiraos.png /mnt/boot/grub/themes/shared/
+        gum style --foreground 196 "Error: lib/asiraos.png not found"
     fi
     
     # Install additional packages if selected

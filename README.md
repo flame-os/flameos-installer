@@ -1,7 +1,4 @@
-# AsiraOS - The Future of Linux
-# Copyright (c) 2024 AsiraOS Team
-# https://asiraos.github.io
-# Licensed under GPL-3.0
+
 
 A beautiful terminal-based installer for AsiraOS using gum for the user interface.
 
