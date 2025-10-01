@@ -7,6 +7,7 @@
 
 # AsiraOS Installer - Main Script
 set -e
+sudo pacman -Sy
 
 # Counter for quit attempts
 QUIT_ATTEMPTS=0
