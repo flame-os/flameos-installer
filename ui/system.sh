@@ -178,7 +178,7 @@ desktop_selection() {
     # Handle basic mode progression - NEVER go to advanced_setup
     if [ "$BASIC_MODE" = true ]; then
         source ./ui/basic.sh
-        basic_step_11_packages
+        basic_step_11_drivers
     else
         advanced_setup
     fi
@@ -417,9 +417,10 @@ perform_installation() {
     gum style --foreground 205 "Step 1/5: Installing base packages..."
     pacstrap /mnt base base-devel $KERNEL linux-firmware --noconfirm --needed
     
-    # Step 2: Install dependencies
-    gum style --foreground 205 "Step 2/5: Installing dependencies..."
-    pacstrap /mnt networkmanager network-manager-applet wireless_tools bluez bluez-utils blueman git --noconfirm --needed
+    # Step 2: Install dependencies and drivers
+    gum style --foreground 205 "Step 2/5: Installing dependencies and drivers..."
+    DRIVER_PACKAGES=$(get_driver_packages)
+    pacstrap /mnt networkmanager network-manager-applet wireless_tools bluez bluez-utils blueman git $DRIVER_PACKAGES --noconfirm --needed
     
     # Step 3: Bootloader installation
     gum style --foreground 205 "Step 3/5: Installing bootloader..."

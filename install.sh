@@ -36,6 +36,7 @@ source ./ui/user.sh
 source ./ui/disk.sh
 source ./ui/system.sh
 source ./ui/packages.sh
+source ./ui/drivers.sh
 source ./ui/main.sh
 source ./ui/basic.sh
 source ./ui/advanced.sh

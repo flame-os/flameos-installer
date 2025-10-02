@@ -121,17 +121,27 @@ basic_step_9_hostname() {
 # Step 10: Desktop Environment
 basic_step_10_desktop() {
     show_banner
-    gum style --foreground 212 "Step 10/12: Desktop Environment"
+    gum style --foreground 212 "Step 10/13: Desktop Environment"
     echo ""
     
     BASIC_MODE=true
     desktop_selection
 }
 
-# Step 11: Package Selection
-basic_step_11_packages() {
+# Step 11: Driver Selection
+basic_step_11_drivers() {
     show_banner
-    gum style --foreground 212 "Step 11/12: Package Selection (Optional)"
+    gum style --foreground 212 "Step 11/13: Driver Selection"
+    echo ""
+    
+    BASIC_MODE=true
+    driver_selection
+}
+
+# Step 12: Package Selection
+basic_step_12_packages() {
+    show_banner
+    gum style --foreground 212 "Step 12/13: Package Selection (Optional)"
     echo ""
     
     CHOICE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
@@ -144,15 +154,15 @@ basic_step_11_packages() {
             package_selection
             ;;
         "Skip Package Selection")
-            basic_step_12_timezone
+            basic_step_13_timezone
             ;;
     esac
 }
 
-# Step 12: Timezone Selection
-basic_step_12_timezone() {
+# Step 13: Timezone Selection
+basic_step_13_timezone() {
     show_banner
-    gum style --foreground 212 "Step 12/12: Timezone Selection"
+    gum style --foreground 212 "Step 13/13: Timezone Selection"
     echo ""
     
     BASIC_MODE=true

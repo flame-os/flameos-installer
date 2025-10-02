@@ -90,6 +90,18 @@ advanced_setup() {
         gum style --foreground 196 "✗ Packages: None selected"
     fi
     
+    # Drivers
+    if [ -f "/tmp/asiraos/drivers" ]; then
+        DRIVER_COUNT=$(grep -v "Skip Driver Selection" /tmp/asiraos/drivers | wc -l)
+        if [ "$DRIVER_COUNT" -gt 0 ]; then
+            gum style --foreground 46 "✓ Drivers: $DRIVER_COUNT selected"
+        else
+            gum style --foreground 196 "✗ Drivers: Skipped"
+        fi
+    else
+        gum style --foreground 196 "✗ Drivers: Not selected"
+    fi
+    
     # Timezone
     if [ -f "/tmp/asiraos/timezone" ]; then
         gum style --foreground 46 "✓ Timezone: $(cat /tmp/asiraos/timezone)"
@@ -109,6 +121,7 @@ advanced_setup() {
         "User Creation" \
         "Hostname Selection" \
         "Desktop Environment" \
+        "Driver Selection" \
         "Network Detection" \
         "Package Selection" \
         "Timezone Selection" \
@@ -142,6 +155,9 @@ advanced_setup() {
             ;;
         "Desktop Environment")
             desktop_selection
+            ;;
+        "Driver Selection")
+            driver_selection
             ;;
         "Network Detection")
             network_detection
