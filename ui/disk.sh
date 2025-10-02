@@ -351,9 +351,22 @@ auto_partition() {
     if [ -d "/sys/firmware/efi" ]; then
         BOOT_MODE="EFI"
         gum style --foreground 46 "✓ EFI boot mode detected"
+        
+        # Ask user where to mount boot partition for EFI
+        gum style --foreground 205 "Choose boot partition mount point:"
+        BOOT_MOUNT=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
+            "/boot/efi (Recommended for EFI)" \
+            "/boot")
+        
+        if [[ "$BOOT_MOUNT" == *"/boot/efi"* ]]; then
+            BOOT_MOUNTPOINT="/boot/efi"
+        else
+            BOOT_MOUNTPOINT="/boot"
+        fi
     else
         BOOT_MODE="BIOS"
         gum style --foreground 46 "✓ BIOS boot mode detected"
+        BOOT_MOUNTPOINT="/boot"
     fi
     echo ""
     
@@ -565,10 +578,10 @@ create_basic_partitions() {
             
             # Save mountpoints with proper partition naming
             if [[ "$partition" =~ nvme ]]; then
-                echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/asiraos/mounts
+                echo "/dev/${partition}p1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
                 echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
             else
-                echo "/dev/${partition}1 -> /boot/efi" >> /tmp/asiraos/mounts
+                echo "/dev/${partition}1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
                 echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
             fi
         else
@@ -584,10 +597,10 @@ create_basic_partitions() {
             
             # Save mountpoints with proper partition naming
             if [[ "$partition" =~ nvme ]]; then
-                echo "/dev/${partition}p1 -> /boot" >> /tmp/asiraos/mounts
+                echo "/dev/${partition}p1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
                 echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
             else
-                echo "/dev/${partition}1 -> /boot" >> /tmp/asiraos/mounts
+                echo "/dev/${partition}1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
                 echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
             fi
         fi
@@ -651,19 +664,11 @@ create_standard_partitions() {
     else
         # User selected whole disk - create new partitions
         if [[ "$partition" =~ nvme ]]; then
-            if [ "$BOOT_MODE" = "EFI" ]; then
-                echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/asiraos/mounts
-            else
-                echo "/dev/${partition}p1 -> /boot" >> /tmp/asiraos/mounts
-            fi
+            echo "/dev/${partition}p1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
             echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
             echo "/dev/${partition}p3 -> /home" >> /tmp/asiraos/mounts
         else
-            if [ "$BOOT_MODE" = "EFI" ]; then
-                echo "/dev/${partition}1 -> /boot/efi" >> /tmp/asiraos/mounts
-            else
-                echo "/dev/${partition}1 -> /boot" >> /tmp/asiraos/mounts
-            fi
+            echo "/dev/${partition}1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
             echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
             echo "/dev/${partition}3 -> /home" >> /tmp/asiraos/mounts
         fi
@@ -693,20 +698,12 @@ create_custom_partitions() {
     else
         # User selected whole disk - create new partitions
         if [[ "$partition" =~ nvme ]]; then
-            if [ "$BOOT_MODE" = "EFI" ]; then
-                echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/asiraos/mounts
-            else
-                echo "/dev/${partition}p1 -> /boot" >> /tmp/asiraos/mounts
-            fi
+            echo "/dev/${partition}p1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
             echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
             local part_prefix="p"
             local base_partition="$partition"
         else
-            if [ "$BOOT_MODE" = "EFI" ]; then
-                echo "/dev/${partition}1 -> /boot/efi" >> /tmp/asiraos/mounts
-            else
-                echo "/dev/${partition}1 -> /boot" >> /tmp/asiraos/mounts
-            fi
+            echo "/dev/${partition}1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
             echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
             local part_prefix=""
             local base_partition="$partition"
@@ -903,7 +900,7 @@ create_basic_partitions_freespace() {
         
         # Save ONLY the NEW partitions - ALWAYS create this file
         mkdir -p /tmp/asiraos
-        echo "$NEW_BOOT_DEV -> /boot/efi" > /tmp/asiraos/mounts
+        echo "$NEW_BOOT_DEV -> $BOOT_MOUNTPOINT" > /tmp/asiraos/mounts
         echo "$NEW_ROOT_DEV -> /" >> /tmp/asiraos/mounts
     else
         # BIOS mode
@@ -915,7 +912,7 @@ create_basic_partitions_freespace() {
         
         # Save ONLY the NEW partitions - ALWAYS create this file
         mkdir -p /tmp/asiraos
-        echo "$NEW_BOOT_DEV -> /boot" > /tmp/asiraos/mounts
+        echo "$NEW_BOOT_DEV -> $BOOT_MOUNTPOINT" > /tmp/asiraos/mounts
         echo "$NEW_ROOT_DEV -> /" >> /tmp/asiraos/mounts
     fi
     
@@ -1004,11 +1001,7 @@ create_standard_partitions_freespace() {
     mkfs.ext4 $HOME_DEV
     
     # Save mountpoints
-    if [ "$BOOT_MODE" = "EFI" ]; then
-        echo "$BOOT_DEV -> /boot/efi" >> /tmp/asiraos/mounts
-    else
-        echo "$BOOT_DEV -> /boot" >> /tmp/asiraos/mounts
-    fi
+    echo "$BOOT_DEV -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
     echo "$ROOT_DEV -> /" >> /tmp/asiraos/mounts
     echo "$HOME_DEV -> /home" >> /tmp/asiraos/mounts
     
@@ -1086,11 +1079,7 @@ create_custom_partitions_freespace() {
     esac
     
     # Save basic mountpoints
-    if [ "$BOOT_MODE" = "EFI" ]; then
-        echo "$BOOT_DEV -> /boot/efi" >> /tmp/asiraos/mounts
-    else
-        echo "$BOOT_DEV -> /boot" >> /tmp/asiraos/mounts
-    fi
+    echo "$BOOT_DEV -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
     echo "$ROOT_DEV -> /" >> /tmp/asiraos/mounts
     
     echo -e "${GREEN}Custom partitions created successfully in free space${NC}"

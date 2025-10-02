@@ -19,7 +19,7 @@ package_selection() {
         "Search and Add Package" \
         "Clear All Packages" \
         "Continue to Next Step" \
-        "Go Back to Advanced Menu")
+        "Go Back to Previous Menu")
     
     case $CHOICE in
         "Search and Add Package")
@@ -33,16 +33,14 @@ package_selection() {
             ;;
         "Continue to Next Step")
             if [ "$BASIC_MODE" = true ]; then
-                source ./ui/basic.sh
-                basic_step_12_timezone
+                basic_step_13_timezone
             else
                 advanced_setup
             fi
             ;;
-        "Go Back to Advanced Menu")
+        "Go Back to Previous Menu")
             if [ "$BASIC_MODE" = true ]; then
-                source ./ui/basic.sh
-                basic_setup
+                basic_step_12_packages
             else
                 advanced_setup
             fi
@@ -72,9 +70,5 @@ search_and_add_package() {
     fi
     
     # Return to main package menu
-    if [ "$BASIC_MODE" = true ]; then
-        package_selection
-    else
-        package_selection
-    fi
+    package_selection
 }
