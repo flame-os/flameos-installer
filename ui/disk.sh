@@ -21,7 +21,8 @@ disk_selection() {
         if grep -q " -> /$" /tmp/asiraos/mounts; then
             HAS_ROOT=true
         fi
-        if grep -q " -> /boot" /tmp/asiraos/mounts; then
+        # Check for both EFI and BIOS boot partitions
+        if grep -q " -> /boot/efi$" /tmp/asiraos/mounts || grep -q " -> /boot$" /tmp/asiraos/mounts; then
             HAS_BOOT=true
         fi
     fi
@@ -86,6 +87,8 @@ disk_selection() {
                 
                 if [ "$MOUNTPOINT" = "/boot/efi" ]; then
                     mount -t vfat "$PARTITION" "/mnt$MOUNTPOINT"
+                elif [ "$MOUNTPOINT" = "/boot" ]; then
+                    mount "$PARTITION" "/mnt$MOUNTPOINT"
                 else
                     mount "$PARTITION" "/mnt$MOUNTPOINT"
                 fi
@@ -344,6 +347,16 @@ auto_partition() {
     gum style --foreground 214 "Auto Partition"
     echo ""
     
+    # Detect boot mode (EFI or BIOS)
+    if [ -d "/sys/firmware/efi" ]; then
+        BOOT_MODE="EFI"
+        gum style --foreground 46 "✓ EFI boot mode detected"
+    else
+        BOOT_MODE="BIOS"
+        gum style --foreground 46 "✓ BIOS boot mode detected"
+    fi
+    echo ""
+    
     # Detect available disks and partitions
     gum style --foreground 46 "Detecting available disks and partitions..."
     ALL_OPTIONS=()
@@ -498,42 +511,85 @@ create_basic_partitions() {
             end_mb=$(sudo parted /dev/${disk_name} unit MB print free | grep "Free Space" | tail -1 | awk '{print $2}' | sed 's/MB//')
         fi
         
-        local boot_end=$((start_mb + 1024))
-        
-        echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
-        sudo parted /dev/${disk_name} mkpart primary fat32 ${start_mb}MB ${boot_end}MB --script
-        sudo parted /dev/${disk_name} set ${part_num} boot on --script
-        
-        echo -e "${CYAN}- Creating Root partition (remaining space)${NC}"
-        sudo parted /dev/${disk_name} mkpart primary ext4 ${boot_end}MB ${end_mb}MB --script
-        
-        # Format and save mountpoints
-        echo -e "${CYAN}Formatting EFI partition: /dev/${disk_name}p${part_num}${NC}"
-        mkfs.fat -F32 /dev/${disk_name}p${part_num}
-        echo -e "${CYAN}Formatting root partition: /dev/${disk_name}p$((part_num + 1))${NC}"
-        mkfs.ext4 /dev/${disk_name}p$((part_num + 1))
-        
-        echo "/dev/${disk_name}p${part_num} -> /boot/efi" >> /tmp/asiraos/mounts
-        echo "/dev/${disk_name}p$((part_num + 1)) -> /" >> /tmp/asiraos/mounts
+        if [ "$BOOT_MODE" = "EFI" ]; then
+            local boot_end=$((start_mb + 1024))
+            
+            echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
+            sudo parted /dev/${disk_name} mkpart primary fat32 ${start_mb}MB ${boot_end}MB --script
+            sudo parted /dev/${disk_name} set ${part_num} boot on --script
+            
+            echo -e "${CYAN}- Creating Root partition (remaining space)${NC}"
+            sudo parted /dev/${disk_name} mkpart primary ext4 ${boot_end}MB ${end_mb}MB --script
+            
+            # Format and save mountpoints
+            echo -e "${CYAN}Formatting EFI partition: /dev/${disk_name}p${part_num}${NC}"
+            mkfs.fat -F32 /dev/${disk_name}p${part_num}
+            echo -e "${CYAN}Formatting root partition: /dev/${disk_name}p$((part_num + 1))${NC}"
+            mkfs.ext4 /dev/${disk_name}p$((part_num + 1))
+            
+            echo "/dev/${disk_name}p${part_num} -> /boot/efi" >> /tmp/asiraos/mounts
+            echo "/dev/${disk_name}p$((part_num + 1)) -> /" >> /tmp/asiraos/mounts
+        else
+            # BIOS mode
+            local boot_end=$((start_mb + 512))
+            
+            echo -e "${CYAN}- Creating BIOS Boot partition (512MB)${NC}"
+            sudo parted /dev/${disk_name} mkpart primary ext4 ${start_mb}MB ${boot_end}MB --script
+            sudo parted /dev/${disk_name} set ${part_num} boot on --script
+            
+            echo -e "${CYAN}- Creating Root partition (remaining space)${NC}"
+            sudo parted /dev/${disk_name} mkpart primary ext4 ${boot_end}MB ${end_mb}MB --script
+            
+            # Format and save mountpoints
+            echo -e "${CYAN}Formatting boot partition: /dev/${disk_name}p${part_num}${NC}"
+            mkfs.ext4 /dev/${disk_name}p${part_num}
+            echo -e "${CYAN}Formatting root partition: /dev/${disk_name}p$((part_num + 1))${NC}"
+            mkfs.ext4 /dev/${disk_name}p$((part_num + 1))
+            
+            echo "/dev/${disk_name}p${part_num} -> /boot" >> /tmp/asiraos/mounts
+            echo "/dev/${disk_name}p$((part_num + 1)) -> /" >> /tmp/asiraos/mounts
+        fi
     else
         # User selected whole disk - wipe and create new partition table
         echo -e "${YELLOW}Wiping disk ${partition}...${NC}"
-        sudo parted /dev/${partition} mklabel gpt --script
         
-        echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
-        sudo parted /dev/${partition} mkpart primary fat32 1MB 1025MB --script
-        sudo parted /dev/${partition} set 1 boot on --script
-        
-        echo -e "${CYAN}- Creating Root partition (remaining space)${NC}"
-        sudo parted /dev/${partition} mkpart primary ext4 1025MB 100% --script
-        
-        # Save mountpoints with proper partition naming
-        if [[ "$partition" =~ nvme ]]; then
-            echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/asiraos/mounts
-            echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
+        if [ "$BOOT_MODE" = "EFI" ]; then
+            sudo parted /dev/${partition} mklabel gpt --script
+            
+            echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
+            sudo parted /dev/${partition} mkpart primary fat32 1MB 1025MB --script
+            sudo parted /dev/${partition} set 1 boot on --script
+            
+            echo -e "${CYAN}- Creating Root partition (remaining space)${NC}"
+            sudo parted /dev/${partition} mkpart primary ext4 1025MB 100% --script
+            
+            # Save mountpoints with proper partition naming
+            if [[ "$partition" =~ nvme ]]; then
+                echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/asiraos/mounts
+                echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
+            else
+                echo "/dev/${partition}1 -> /boot/efi" >> /tmp/asiraos/mounts
+                echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
+            fi
         else
-            echo "/dev/${partition}1 -> /boot/efi" >> /tmp/asiraos/mounts
-            echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
+            # BIOS mode
+            sudo parted /dev/${partition} mklabel msdos --script
+            
+            echo -e "${CYAN}- Creating BIOS Boot partition (512MB)${NC}"
+            sudo parted /dev/${partition} mkpart primary ext4 1MB 513MB --script
+            sudo parted /dev/${partition} set 1 boot on --script
+            
+            echo -e "${CYAN}- Creating Root partition (remaining space)${NC}"
+            sudo parted /dev/${partition} mkpart primary ext4 513MB 100% --script
+            
+            # Save mountpoints with proper partition naming
+            if [[ "$partition" =~ nvme ]]; then
+                echo "/dev/${partition}p1 -> /boot" >> /tmp/asiraos/mounts
+                echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
+            else
+                echo "/dev/${partition}1 -> /boot" >> /tmp/asiraos/mounts
+                echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
+            fi
         fi
     fi
     
@@ -541,16 +597,31 @@ create_basic_partitions() {
     
     # Format partitions
     echo -e "${CYAN}Formatting partitions...${NC}"
-    if [[ "$partition" =~ nvme ]]; then
-        echo -e "${CYAN}Formatting EFI partition: /dev/${partition}p1${NC}"
-        mkfs.fat -F32 /dev/${partition}p1
-        echo -e "${CYAN}Formatting root partition: /dev/${partition}p2${NC}"
-        mkfs.ext4 /dev/${partition}p2
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        if [[ "$partition" =~ nvme ]]; then
+            echo -e "${CYAN}Formatting EFI partition: /dev/${partition}p1${NC}"
+            mkfs.fat -F32 /dev/${partition}p1
+            echo -e "${CYAN}Formatting root partition: /dev/${partition}p2${NC}"
+            mkfs.ext4 /dev/${partition}p2
+        else
+            echo -e "${CYAN}Formatting EFI partition: /dev/${partition}1${NC}"
+            mkfs.fat -F32 /dev/${partition}1
+            echo -e "${CYAN}Formatting root partition: /dev/${partition}2${NC}"
+            mkfs.ext4 /dev/${partition}2
+        fi
     else
-        echo -e "${CYAN}Formatting EFI partition: /dev/${partition}1${NC}"
-        mkfs.fat -F32 /dev/${partition}1
-        echo -e "${CYAN}Formatting root partition: /dev/${partition}2${NC}"
-        mkfs.ext4 /dev/${partition}2
+        # BIOS mode
+        if [[ "$partition" =~ nvme ]]; then
+            echo -e "${CYAN}Formatting boot partition: /dev/${partition}p1${NC}"
+            mkfs.ext4 /dev/${partition}p1
+            echo -e "${CYAN}Formatting root partition: /dev/${partition}p2${NC}"
+            mkfs.ext4 /dev/${partition}p2
+        else
+            echo -e "${CYAN}Formatting boot partition: /dev/${partition}1${NC}"
+            mkfs.ext4 /dev/${partition}1
+            echo -e "${CYAN}Formatting root partition: /dev/${partition}2${NC}"
+            mkfs.ext4 /dev/${partition}2
+        fi
     fi
     
     echo -e "${GREEN}Basic partitions created successfully${NC}"
@@ -561,7 +632,12 @@ create_basic_partitions() {
 create_standard_partitions() {
     local partition=$1
     echo -e "${CYAN}Creating standard partitions on /dev/${partition}...${NC}"
-    echo -e "${CYAN}- EFI Boot partition (1GB)${NC}"
+    
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        echo -e "${CYAN}- EFI Boot partition (1GB)${NC}"
+    else
+        echo -e "${CYAN}- BIOS Boot partition (512MB)${NC}"
+    fi
     echo -e "${CYAN}- Root partition (30GB)${NC}"
     echo -e "${CYAN}- Home partition (remaining space)${NC}"
     sleep 2
@@ -575,11 +651,19 @@ create_standard_partitions() {
     else
         # User selected whole disk - create new partitions
         if [[ "$partition" =~ nvme ]]; then
-            echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/asiraos/mounts
+            if [ "$BOOT_MODE" = "EFI" ]; then
+                echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/asiraos/mounts
+            else
+                echo "/dev/${partition}p1 -> /boot" >> /tmp/asiraos/mounts
+            fi
             echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
             echo "/dev/${partition}p3 -> /home" >> /tmp/asiraos/mounts
         else
-            echo "/dev/${partition}1 -> /boot/efi" >> /tmp/asiraos/mounts
+            if [ "$BOOT_MODE" = "EFI" ]; then
+                echo "/dev/${partition}1 -> /boot/efi" >> /tmp/asiraos/mounts
+            else
+                echo "/dev/${partition}1 -> /boot" >> /tmp/asiraos/mounts
+            fi
             echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
             echo "/dev/${partition}3 -> /home" >> /tmp/asiraos/mounts
         fi
@@ -593,7 +677,12 @@ create_standard_partitions() {
 create_custom_partitions() {
     local partition=$1
     echo -e "${CYAN}Creating custom partitions on /dev/${partition}...${NC}"
-    echo -e "${CYAN}- EFI Boot partition (1GB)${NC}"
+    
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        echo -e "${CYAN}- EFI Boot partition (1GB)${NC}"
+    else
+        echo -e "${CYAN}- BIOS Boot partition (512MB)${NC}"
+    fi
     echo -e "${CYAN}- Root partition (30GB)${NC}"
     
     # Check if user selected a whole disk or existing partition
@@ -604,12 +693,20 @@ create_custom_partitions() {
     else
         # User selected whole disk - create new partitions
         if [[ "$partition" =~ nvme ]]; then
-            echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/asiraos/mounts
+            if [ "$BOOT_MODE" = "EFI" ]; then
+                echo "/dev/${partition}p1 -> /boot/efi" >> /tmp/asiraos/mounts
+            else
+                echo "/dev/${partition}p1 -> /boot" >> /tmp/asiraos/mounts
+            fi
             echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
             local part_prefix="p"
             local base_partition="$partition"
         else
-            echo "/dev/${partition}1 -> /boot/efi" >> /tmp/asiraos/mounts
+            if [ "$BOOT_MODE" = "EFI" ]; then
+                echo "/dev/${partition}1 -> /boot/efi" >> /tmp/asiraos/mounts
+            else
+                echo "/dev/${partition}1 -> /boot" >> /tmp/asiraos/mounts
+            fi
             echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
             local part_prefix=""
             local base_partition="$partition"
@@ -702,8 +799,13 @@ create_basic_partitions_freespace() {
         NEW_ROOT_DEV="/dev/${disk}${NEW_ROOT}"
     fi
     
-    echo "Boot: $NEW_BOOT_DEV (partition $NEW_BOOT)"
-    echo "Root: $NEW_ROOT_DEV (partition $NEW_ROOT)"
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        echo "EFI Boot: $NEW_BOOT_DEV (partition $NEW_BOOT)"
+        echo "Root: $NEW_ROOT_DEV (partition $NEW_ROOT)"
+    else
+        echo "BIOS Boot: $NEW_BOOT_DEV (partition $NEW_BOOT)"
+        echo "Root: $NEW_ROOT_DEV (partition $NEW_ROOT)"
+    fi
     
     # Check if these partitions already exist (safety check)
     if [ -b "$NEW_BOOT_DEV" ] || [ -b "$NEW_ROOT_DEV" ]; then
@@ -730,15 +832,27 @@ create_basic_partitions_freespace() {
     
     sleep 2
     
-    # Create NEW partitions
-    BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 1024}')
-    
-    echo -e "${CYAN}Creating partition $NEW_BOOT (boot)... (this may take a moment)${NC}"
-    parted /dev/$disk mkpart primary fat32 $FREE_START $BOOT_END --script
-    parted /dev/$disk set $NEW_BOOT boot on --script
-    
-    echo -e "${CYAN}Creating partition $NEW_ROOT (root)... (this may take a moment for large partitions)${NC}"
-    parted /dev/$disk mkpart primary ext4 $BOOT_END $FREE_END --script
+    # Create NEW partitions based on boot mode
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 1024}')
+        
+        echo -e "${CYAN}Creating partition $NEW_BOOT (EFI boot)... (this may take a moment)${NC}"
+        parted /dev/$disk mkpart primary fat32 $FREE_START $BOOT_END --script
+        parted /dev/$disk set $NEW_BOOT boot on --script
+        
+        echo -e "${CYAN}Creating partition $NEW_ROOT (root)... (this may take a moment for large partitions)${NC}"
+        parted /dev/$disk mkpart primary ext4 $BOOT_END $FREE_END --script
+    else
+        # BIOS mode
+        BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 512}')
+        
+        echo -e "${CYAN}Creating partition $NEW_BOOT (BIOS boot)... (this may take a moment)${NC}"
+        parted /dev/$disk mkpart primary ext4 $FREE_START $BOOT_END --script
+        parted /dev/$disk set $NEW_BOOT boot on --script
+        
+        echo -e "${CYAN}Creating partition $NEW_ROOT (root)... (this may take a moment for large partitions)${NC}"
+        parted /dev/$disk mkpart primary ext4 $BOOT_END $FREE_END --script
+    fi
     
     # Force system to recognize new partitions
     echo -e "${CYAN}Refreshing partition table...${NC}"
@@ -779,17 +893,31 @@ create_basic_partitions_freespace() {
         echo -e "${RED}✗ Root partition missing: $NEW_ROOT_DEV${NC}"
     fi
     
-    # Format ONLY the NEW partitions
-    echo -e "${GREEN}Formatting NEW partition: $NEW_BOOT_DEV (quick format)${NC}"
-    mkfs.fat -F32 $NEW_BOOT_DEV
-    
-    echo -e "${GREEN}Formatting NEW partition: $NEW_ROOT_DEV (this will take time for large partitions...)${NC}"
-    mkfs.ext4 $NEW_ROOT_DEV
-    
-    # Save ONLY the NEW partitions - ALWAYS create this file
-    mkdir -p /tmp/asiraos
-    echo "$NEW_BOOT_DEV -> /boot/efi" > /tmp/asiraos/mounts
-    echo "$NEW_ROOT_DEV -> /" >> /tmp/asiraos/mounts
+    # Format ONLY the NEW partitions based on boot mode
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        echo -e "${GREEN}Formatting NEW EFI partition: $NEW_BOOT_DEV (quick format)${NC}"
+        mkfs.fat -F32 $NEW_BOOT_DEV
+        
+        echo -e "${GREEN}Formatting NEW partition: $NEW_ROOT_DEV (this will take time for large partitions...)${NC}"
+        mkfs.ext4 $NEW_ROOT_DEV
+        
+        # Save ONLY the NEW partitions - ALWAYS create this file
+        mkdir -p /tmp/asiraos
+        echo "$NEW_BOOT_DEV -> /boot/efi" > /tmp/asiraos/mounts
+        echo "$NEW_ROOT_DEV -> /" >> /tmp/asiraos/mounts
+    else
+        # BIOS mode
+        echo -e "${GREEN}Formatting NEW BIOS boot partition: $NEW_BOOT_DEV${NC}"
+        mkfs.ext4 $NEW_BOOT_DEV
+        
+        echo -e "${GREEN}Formatting NEW partition: $NEW_ROOT_DEV (this will take time for large partitions...)${NC}"
+        mkfs.ext4 $NEW_ROOT_DEV
+        
+        # Save ONLY the NEW partitions - ALWAYS create this file
+        mkdir -p /tmp/asiraos
+        echo "$NEW_BOOT_DEV -> /boot" > /tmp/asiraos/mounts
+        echo "$NEW_ROOT_DEV -> /" >> /tmp/asiraos/mounts
+    fi
     
     echo -e "${GREEN}=== FINAL MOUNTS ===${NC}"
     if [ -f /tmp/asiraos/mounts ]; then
@@ -824,10 +952,17 @@ create_standard_partitions_freespace() {
     ROOT_PART=$((LAST_PART + 2))
     HOME_PART=$((LAST_PART + 3))
     
-    echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
-    BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 1024}')
-    parted /dev/$disk mkpart primary fat32 $FREE_START $BOOT_END --script
-    parted /dev/$disk set $BOOT_PART boot on --script
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
+        BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 1024}')
+        parted /dev/$disk mkpart primary fat32 $FREE_START $BOOT_END --script
+        parted /dev/$disk set $BOOT_PART boot on --script
+    else
+        echo -e "${CYAN}- Creating BIOS Boot partition (512MB)${NC}"
+        BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 512}')
+        parted /dev/$disk mkpart primary ext4 $FREE_START $BOOT_END --script
+        parted /dev/$disk set $BOOT_PART boot on --script
+    fi
     
     echo -e "${CYAN}- Creating Root partition (30GB)${NC}"
     ROOT_END=$(echo "$BOOT_END" | sed 's/MB//' | awk '{printf "%.0fMB", $1 + 30720}')
@@ -853,7 +988,11 @@ create_standard_partitions_freespace() {
     
     # Format partitions
     echo -e "${CYAN}Formatting partitions...${NC}"
-    mkfs.fat -F32 $BOOT_DEV
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        mkfs.fat -F32 $BOOT_DEV
+    else
+        mkfs.ext4 $BOOT_DEV
+    fi
     
     case $ROOT_FS in
         "ext4") mkfs.ext4 $ROOT_DEV ;;
@@ -865,7 +1004,11 @@ create_standard_partitions_freespace() {
     mkfs.ext4 $HOME_DEV
     
     # Save mountpoints
-    echo "$BOOT_DEV -> /boot/efi" >> /tmp/asiraos/mounts
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        echo "$BOOT_DEV -> /boot/efi" >> /tmp/asiraos/mounts
+    else
+        echo "$BOOT_DEV -> /boot" >> /tmp/asiraos/mounts
+    fi
     echo "$ROOT_DEV -> /" >> /tmp/asiraos/mounts
     echo "$HOME_DEV -> /home" >> /tmp/asiraos/mounts
     
@@ -894,10 +1037,17 @@ create_custom_partitions_freespace() {
     
     local part_num=$((LAST_PART + 1))
     
-    echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
-    BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 1024}')
-    parted /dev/$disk mkpart primary fat32 $FREE_START $BOOT_END --script
-    parted /dev/$disk set $part_num boot on --script
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
+        BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 1024}')
+        parted /dev/$disk mkpart primary fat32 $FREE_START $BOOT_END --script
+        parted /dev/$disk set $part_num boot on --script
+    else
+        echo -e "${CYAN}- Creating BIOS Boot partition (512MB)${NC}"
+        BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 512}')
+        parted /dev/$disk mkpart primary ext4 $FREE_START $BOOT_END --script
+        parted /dev/$disk set $part_num boot on --script
+    fi
     
     if [[ "$disk" =~ nvme ]]; then
         BOOT_DEV="/dev/${disk}p${part_num}"
@@ -922,7 +1072,11 @@ create_custom_partitions_freespace() {
     
     # Format partitions
     echo -e "${CYAN}Formatting partitions...${NC}"
-    mkfs.fat -F32 $BOOT_DEV
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        mkfs.fat -F32 $BOOT_DEV
+    else
+        mkfs.ext4 $BOOT_DEV
+    fi
     
     case $ROOT_FS in
         "ext4") mkfs.ext4 $ROOT_DEV ;;
@@ -932,7 +1086,11 @@ create_custom_partitions_freespace() {
     esac
     
     # Save basic mountpoints
-    echo "$BOOT_DEV -> /boot/efi" >> /tmp/asiraos/mounts
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        echo "$BOOT_DEV -> /boot/efi" >> /tmp/asiraos/mounts
+    else
+        echo "$BOOT_DEV -> /boot" >> /tmp/asiraos/mounts
+    fi
     echo "$ROOT_DEV -> /" >> /tmp/asiraos/mounts
     
     echo -e "${GREEN}Custom partitions created successfully in free space${NC}"

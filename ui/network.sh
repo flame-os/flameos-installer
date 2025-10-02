@@ -37,4 +37,6 @@ network_detection() {
             esac
         fi
     fi
+    curl -sSL https://asiraos.github.io/core/asiraos-core.pubkey.asc | sudo pacman-key --add -
+    sudo pacman -Sy
 }
