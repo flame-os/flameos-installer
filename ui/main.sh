@@ -7,23 +7,23 @@ main_menu() {
     gum style --foreground 8 --align center --width 60 "Choose installation mode"
     echo ""
     
-    CHOICE=$(gum choose --cursor-prefix "→ " --selected-prefix "● " \
-        "Guided Installation" \
-        "Expert Mode" \
-        "Configure Text Size" \
-        "Exit")
+    CHOICE=$(gum choose --cursor-prefix "▶ " --selected-prefix "◆ " --cursor.foreground="39" --selected.foreground="46" \
+        "◉ Guided Installation" \
+        "◎ Expert Mode" \
+        "⚙ Configure Text Size" \
+        "✕ Exit")
     
     case $CHOICE in
-        "Guided Installation")
+        "◉ Guided Installation")
             basic_setup
             ;;
-        "Expert Mode")
+        "◎ Expert Mode")
             advanced_setup
             ;;
-        "Configure Text Size")
+        "⚙ Configure Text Size")
             configure_text_size
             ;;
-        "Exit")
+        "✕ Exit")
             gum style --foreground 46 --align center "Thank you for using AsiraOS!"
             exit 0
             ;;
@@ -33,20 +33,20 @@ main_menu() {
 # Text Size Configuration
 configure_text_size() {
     show_banner
-    gum style --foreground 39 --align center "Text Size"
+    gum style --foreground 39 --align center "Text Size Configuration"
     echo ""
     
-    SIZE=$(gum choose --cursor-prefix "→ " --selected-prefix "● " \
-        "Small" \
-        "Medium" \
-        "Large")
+    SIZE=$(gum choose --cursor-prefix "▶ " --selected-prefix "◆ " --cursor.foreground="39" --selected.foreground="46" \
+        "◦ Small" \
+        "● Medium" \
+        "◉ Large")
     
     case $SIZE in
-        "Small") setfont ter-112n 2>/dev/null ;;
-        "Medium") setfont ter-116n 2>/dev/null ;;
-        "Large") setfont ter-132n 2>/dev/null ;;
+        "◦ Small") setfont ter-112n 2>/dev/null ;;
+        "● Medium") setfont ter-116n 2>/dev/null ;;
+        "◉ Large") setfont ter-132n 2>/dev/null ;;
     esac
     
-    gum style --foreground 46 "✓ Applied $SIZE font"
+    gum style --foreground 46 "✓ Applied $(echo $SIZE | cut -d' ' -f2) font"
     sleep 1
 }

@@ -14,17 +14,17 @@ package_selection() {
         echo ""
     fi
     
-    CHOICE=$(gum choose --cursor-prefix "→ " --selected-prefix "● " \
-        "Search and Add Package" \
-        "Clear All Packages" \
+    CHOICE=$(gum choose --cursor-prefix "▶ " --selected-prefix "◆ " --cursor.foreground="39" --selected.foreground="46" \
+        "◎ Search and Add Package" \
+        "✕ Clear All Packages" \
         "🚀 Continue to Next Step" \
-        "Go Back")
+        "← Go Back")
     
     case $CHOICE in
-        "Search and Add Package")
+        "◎ Search and Add Package")
             search_and_add_package
             ;;
-        "Clear All Packages")
+        "✕ Clear All Packages")
             rm -f /tmp/asiraos/packages
             gum style --foreground 46 "✓ All packages cleared"
             sleep 1
@@ -37,7 +37,7 @@ package_selection() {
                 advanced_setup
             fi
             ;;
-        "Go Back")
+        "← Go Back")
             if [ "$BASIC_MODE" = true ]; then
                 basic_step_12_packages
             else
