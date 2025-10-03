@@ -1,19 +1,12 @@
 #!/bin/bash
-# AsiraOS - The Future of Linux
-# Copyright (c) 2024 AsiraOS Team
-# https://asiraos.github.io
-# Licensed under GPL-3.0
 
-
-# ASCII Art Banner
+# Minimal Banner
 show_banner() {
     clear
-    gum style --foreground 15 --bold \
-" █████  ███████ ██ ██████   █████   ██████  ███████ 
-██   ██ ██      ██ ██   ██ ██   ██ ██    ██ ██      
-███████ ███████ ██ ██████  ███████ ██    ██ ███████ 
-██   ██      ██ ██ ██   ██ ██   ██ ██    ██      ██ 
-██   ██ ███████ ██ ██   ██ ██   ██  ██████  ███████
-
-"
+    echo ""
+    gum style --foreground 39 --bold --align center --width 60 "AsiraOS Installer"
+    gum style --foreground 8 --align center --width 60 "The Future of Linux"
+    echo ""
+    gum style --foreground 8 --align center --width 60 "────────────────────────"
+    echo ""
 }

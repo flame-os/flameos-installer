@@ -4,30 +4,29 @@
 # Package Selection
 package_selection() {
     show_banner
-    gum style --foreground 212 "Package Selection"
+    gum style --foreground 39 --align center "Package Selection"
     echo ""
     
     # Show currently selected packages (unique only)
     if [ -f "/tmp/asiraos/packages" ]; then
-        gum style --foreground 212 "Selected packages:"
-        sort /tmp/asiraos/packages | uniq | tr '\n' ' '
-        echo ""
+        gum style --foreground 46 --align center "✓ Selected Packages"
+        gum style --foreground 8 --border normal --padding "1 2" --margin "0 10" "$(sort /tmp/asiraos/packages | uniq | tr '\n' ' ')"
         echo ""
     fi
     
-    CHOICE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
-        "Search and Add Package" \
-        "Clear All Packages" \
+    CHOICE=$(gum choose --cursor-prefix "→ " --selected-prefix "● " \
+        "🔍 Search and Add Package" \
+        "🗑️  Clear All Packages" \
         "🚀 Continue to Next Step" \
-        "Go Back to Previous Menu")
+        "← Go Back")
     
     case $CHOICE in
-        "Search and Add Package")
+        "🔍 Search and Add Package")
             search_and_add_package
             ;;
-        "Clear All Packages")
+        "🗑️  Clear All Packages")
             rm -f /tmp/asiraos/packages
-            gum style --foreground 205 "All packages cleared"
+            gum style --foreground 46 "✓ All packages cleared"
             sleep 1
             package_selection
             ;;
@@ -38,7 +37,7 @@ package_selection() {
                 advanced_setup
             fi
             ;;
-        "Go Back to Previous Menu")
+        "← Go Back")
             if [ "$BASIC_MODE" = true ]; then
                 basic_step_12_packages
             else
