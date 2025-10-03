@@ -339,10 +339,10 @@ install_system() {
     echo ""
     
     CONFIRM=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
-        "→ Start Installation" \
+        "🚀 Start Installation" \
         "Go Back to Configuration")
     
-    if [ "$CONFIRM" = "→ Start Installation" ]; then
+    if [ "$CONFIRM" = "🚀 Start Installation" ]; then
         perform_installation
     else
         if [ "$BASIC_MODE" = true ]; then
@@ -424,14 +424,28 @@ perform_installation() {
     
     # Step 3: Bootloader installation
     gum style --foreground 205 "Step 3/5: Installing bootloader..."
-    pacstrap /mnt grub efibootmgr os-prober --noconfirm --needed
     
-    # Find EFI partition
-    EFI_PARTITION=$(grep "/boot/efi" /tmp/asiraos/mounts | cut -d' ' -f1 | head -1)
-    if [ -n "$EFI_PARTITION" ]; then
-        arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=ASIRAOS
-        arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+    # Check if system is EFI or BIOS
+    if [ -d /sys/firmware/efi ]; then
+        # EFI system
+        pacstrap /mnt grub efibootmgr os-prober --noconfirm --needed
+        
+        # Check boot partition mount point
+        if grep -q "/boot/efi" /tmp/asiraos/mounts; then
+            arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=AsiraOS
+        elif grep -q "/boot" /tmp/asiraos/mounts; then
+            arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=AsiraOS
+        fi
+    else
+        # BIOS system
+        pacstrap /mnt grub os-prober --noconfirm --needed
+        
+        # Get root partition device (remove partition number)
+        ROOT_DEVICE=$(grep " / " /tmp/asiraos/mounts | cut -d' ' -f1 | sed 's/[0-9]*$//')
+        arch-chroot /mnt grub-install "$ROOT_DEVICE"
     fi
+    
+    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
     
     # Step 4: Generate fstab
     gum style --foreground 205 "Step 4/5: Generating fstab..."
@@ -472,7 +486,7 @@ perform_installation() {
     else
         gum style --foreground 196 "Error: lib/asiraos.png not found"
     fi
-    
+    cp lib/asiraos.png /mnt/etc/grub.d/
     # Install additional packages if selected
     if [ -f "/tmp/asiraos/packages" ]; then
         PACKAGES=$(cat /tmp/asiraos/packages | tr '\n' ' ')

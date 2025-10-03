@@ -1,5 +1,23 @@
 #!/bin/bash
 
+# Get real disk and partition information
+get_real_disks() {
+    lsblk -dpno NAME,SIZE,TYPE | grep disk | while read -r name size type; do
+        echo "$name $size"
+    done
+}
+
+get_real_partitions() {
+    local disk=$1
+    lsblk -pno NAME,SIZE,FSTYPE,MOUNTPOINT "$disk" | grep -v "^$disk" | while read -r name size fstype mount; do
+        echo "$name $size $fstype $mount"
+    done
+}
+
+get_free_space() {
+    local disk=$1
+    parted "$disk" unit GB print free 2>/dev/null | grep "Free Space" | tail -1 | awk '{print $1 " " $3}'
+}
 
 # Disk Selection
 disk_selection() {
@@ -21,23 +39,21 @@ disk_selection() {
         if grep -q " -> /$" /tmp/asiraos/mounts; then
             HAS_ROOT=true
         fi
-        # Check for both EFI and BIOS boot partitions
         if grep -q " -> /boot/efi$" /tmp/asiraos/mounts || grep -q " -> /boot$" /tmp/asiraos/mounts; then
             HAS_BOOT=true
         fi
     fi
     
-    # Build menu options
-    MENU_OPTIONS=("Auto Partition (Recommended)" "Custom Partition Setup")
+    # Build menu options - remove "Recommended" if partitions are configured
+    if [ "$HAS_ROOT" = true ] && [ "$HAS_BOOT" = true ]; then
+        MENU_OPTIONS=("🚀 Continue to Next Step" "Auto Partition" "Custom Partition Setup")
+    else
+        MENU_OPTIONS=("Auto Partition (Recommended)" "Custom Partition Setup")
+    fi
     
     # Add clear option if mounts exist
     if [ -f "/tmp/asiraos/mounts" ]; then
         MENU_OPTIONS+=("Clear All Mountpoints")
-    fi
-    
-    # Add continue button if both root and boot are configured
-    if [ "$HAS_ROOT" = true ] && [ "$HAS_BOOT" = true ]; then
-        MENU_OPTIONS=("→ Continue to Next Step (Recommended)" "${MENU_OPTIONS[@]}")
     fi
     
     MENU_OPTIONS+=("Go Back to Previous Menu")
@@ -48,7 +64,7 @@ disk_selection() {
         "Custom Partition Setup")
             manual_partition
             ;;
-        "Auto Partition (Recommended)")
+        "Auto Partition (Recommended)"|"Auto Partition")
             auto_partition
             ;;
         "Clear All Mountpoints")
@@ -57,75 +73,63 @@ disk_selection() {
             sleep 1
             disk_selection
             ;;
-        "→ Continue to Next Step (Recommended)")
-            # Auto-mount partitions before continuing
-            gum style --foreground 205 "Mounting partitions..."
-            
-            # Unmount any existing mounts
-            umount -R /mnt 2>/dev/null || true
-            
-            # Mount root partition first
-            ROOT_PARTITION=$(grep " -> /$" /tmp/asiraos/mounts | cut -d' ' -f1 | head -1)
-            if [ -n "$ROOT_PARTITION" ]; then
-                gum style --foreground 46 "Mounting root: $ROOT_PARTITION -> /mnt"
-                mount "$ROOT_PARTITION" /mnt
-            fi
-            
-            # Mount other partitions
-            while IFS= read -r line; do
-                PARTITION=$(echo "$line" | cut -d' ' -f1)
-                MOUNTPOINT=$(echo "$line" | cut -d' ' -f3)
-                
-                # Skip root partition (already mounted) and swap
-                if [ "$MOUNTPOINT" = "/" ] || [ "$MOUNTPOINT" = "swap" ]; then
-                    continue
-                fi
-                
-                # Create mountpoint and mount
-                mkdir -p "/mnt$MOUNTPOINT"
-                gum style --foreground 46 "Mounting: $PARTITION -> /mnt$MOUNTPOINT"
-                
-                if [ "$MOUNTPOINT" = "/boot/efi" ]; then
-                    mount -t vfat "$PARTITION" "/mnt$MOUNTPOINT"
-                elif [ "$MOUNTPOINT" = "/boot" ]; then
-                    mount "$PARTITION" "/mnt$MOUNTPOINT"
-                else
-                    mount "$PARTITION" "/mnt$MOUNTPOINT"
-                fi
-            done < /tmp/asiraos/mounts
-            
-            gum style --foreground 46 "✓ All partitions mounted successfully"
-            sleep 1
-            
+        "🚀 Continue to Next Step")
+            mount_partitions_and_continue
+            ;;
+        "Go Back to Previous Menu")
             if [ "$BASIC_MODE" = true ]; then
-                basic_step_3_locale
+                basic_step_1_disk
             else
                 advanced_setup
             fi
             ;;
-        "Go Back to Previous Menu")
-            disk_selection
-            ;;
     esac
 }
 
-# Disk Overview
-disk_overview() {
-    show_banner
-    echo -e "${CYAN}Disk Overview${NC}"
-    echo ""
+mount_partitions_and_continue() {
+    gum style --foreground 205 "Mounting partitions..."
     
-    if [ -f "/tmp/asiraos/mounts" ]; then
-        echo -e "${GREEN}Selected Mountpoints:${NC}"
-        cat /tmp/asiraos/mounts
-        echo ""
-    else
-        echo -e "${YELLOW}No mountpoints configured yet${NC}"
-        echo ""
+    # Unmount any existing mounts
+    umount -R /mnt 2>/dev/null || true
+    
+    # Mount root partition first
+    ROOT_PARTITION=$(grep " -> /$" /tmp/asiraos/mounts | cut -d' ' -f1 | head -1)
+    if [ -n "$ROOT_PARTITION" ]; then
+        gum style --foreground 46 "Mounting root: $ROOT_PARTITION -> /mnt"
+        mount "$ROOT_PARTITION" /mnt
     fi
     
-    gum input --placeholder "Press Enter to continue..."
-    disk_selection
+    # Mount other partitions
+    while IFS= read -r line; do
+        PARTITION=$(echo "$line" | cut -d' ' -f1)
+        MOUNTPOINT=$(echo "$line" | cut -d' ' -f3)
+        
+        # Skip root partition (already mounted) and swap
+        if [ "$MOUNTPOINT" = "/" ] || [ "$MOUNTPOINT" = "swap" ]; then
+            continue
+        fi
+        
+        # Create mountpoint and mount
+        mkdir -p "/mnt$MOUNTPOINT"
+        gum style --foreground 46 "Mounting: $PARTITION -> /mnt$MOUNTPOINT"
+        
+        if [ "$MOUNTPOINT" = "/boot/efi" ]; then
+            mount -t vfat "$PARTITION" "/mnt$MOUNTPOINT"
+        elif [ "$MOUNTPOINT" = "/boot" ]; then
+            mount "$PARTITION" "/mnt$MOUNTPOINT"
+        else
+            mount "$PARTITION" "/mnt$MOUNTPOINT"
+        fi
+    done < /tmp/asiraos/mounts
+    
+    gum style --foreground 46 "✓ All partitions mounted successfully"
+    sleep 1
+    
+    if [ "$BASIC_MODE" = true ]; then
+        basic_step_3_locale
+    else
+        advanced_setup
+    fi
 }
 
 # Manual Partition
@@ -134,15 +138,13 @@ manual_partition() {
     gum style --foreground 214 "Manual Partition"
     echo ""
     
-    # Detect available disks
+    # Get real available disks
     DISK_OPTIONS=()
-    while IFS= read -r line; do
-        DISK_NAME=$(echo "$line" | awk '{print $1}' | sed 's/[├└─│ ]//g')
-        DISK_SIZE=$(echo "$line" | awk '{print $2}')
-        if [[ "$DISK_NAME" =~ ^(nvme[0-9]+n[0-9]+|sd[a-z]|vd[a-z]|hd[a-z])$ ]]; then
-            DISK_OPTIONS+=("$DISK_NAME ($DISK_SIZE)")
-        fi
-    done < <(lsblk -n -o NAME,SIZE)
+    while read -r disk_line; do
+        disk_name=$(echo "$disk_line" | awk '{print $1}' | sed 's|/dev/||')
+        disk_size=$(echo "$disk_line" | awk '{print $2}')
+        DISK_OPTIONS+=("$disk_name ($disk_size)")
+    done < <(get_real_disks)
     
     if [ ${#DISK_OPTIONS[@]} -eq 0 ]; then
         gum style --foreground 196 "No disks found"
@@ -165,7 +167,7 @@ manual_partition() {
         "Create/Edit Partitions (cfdisk)")
             gum style --foreground 214 "Opening cfdisk for /dev/$DISK"
             sleep 1
-            sudo cfdisk /dev/$DISK
+            cfdisk /dev/$DISK
             echo -e "${GREEN}Partitioning completed for /dev/$DISK${NC}"
             gum input --placeholder "Press Enter to continue..."
             manual_partition
@@ -179,31 +181,42 @@ manual_partition() {
     esac
 }
 
-# Set Mountpoints
+# Set Mountpoints with proper partition detection
 set_mountpoints() {
     local disk=$1
     show_banner
     echo -e "${CYAN}Set Mountpoints for /dev/$disk${NC}"
     echo ""
     
-    # Get available partitions
+    # Get real partitions for this disk
     PARTITION_OPTIONS=()
-    while IFS= read -r line; do
-        PART_NAME=$(echo "$line" | awk '{print $1}' | sed 's/[├└─│ ]//g')
-        PART_SIZE=$(echo "$line" | awk '{print $2}')
-        if [[ "$PART_NAME" =~ ^${disk}(p?[0-9]+)$ ]]; then
-            PARTITION_OPTIONS+=("$PART_NAME ($PART_SIZE)")
+    while read -r part_line; do
+        if [ -n "$part_line" ]; then
+            part_name=$(echo "$part_line" | awk '{print $1}' | sed 's|/dev/||')
+            part_size=$(echo "$part_line" | awk '{print $2}')
+            part_fstype=$(echo "$part_line" | awk '{print $3}')
+            part_mount=$(echo "$part_line" | awk '{print $4}')
+            
+            if [ "$part_fstype" = "" ]; then
+                part_fstype="unformatted"
+            fi
+            
+            PARTITION_OPTIONS+=("$part_name ($part_size, $part_fstype)")
         fi
-    done < <(lsblk /dev/$disk -n -o NAME,SIZE)
+    done < <(get_real_partitions "/dev/$disk")
     
-    # Add free space detection
-    FREE_SPACE=$(parted /dev/$disk print free 2>/dev/null | grep "Free Space" | tail -1 | awk '{print $3}')
-    if [ -n "$FREE_SPACE" ] && [ "$FREE_SPACE" != "0B" ]; then
-        PARTITION_OPTIONS+=("FREE_SPACE ($FREE_SPACE) - Create New Partition")
+    # Check for real free space
+    FREE_SPACE_INFO=$(get_free_space "/dev/$disk")
+    if [ -n "$FREE_SPACE_INFO" ]; then
+        FREE_START=$(echo "$FREE_SPACE_INFO" | awk '{print $1}')
+        FREE_SIZE=$(echo "$FREE_SPACE_INFO" | awk '{print $2}')
+        if [ "$FREE_SIZE" != "0GB" ] && [ "$FREE_SIZE" != "0.00GB" ]; then
+            PARTITION_OPTIONS+=("FREE_SPACE ($FREE_SIZE available)")
+        fi
     fi
     
     if [ ${#PARTITION_OPTIONS[@]} -eq 0 ]; then
-        echo -e "${YELLOW}No partitions found on /dev/$disk${NC}"
+        echo -e "${YELLOW}No partitions or free space found on /dev/$disk${NC}"
         echo -e "${YELLOW}Please create partitions first using cfdisk${NC}"
         gum input --placeholder "Press Enter to go back..."
         manual_partition
@@ -211,47 +224,25 @@ set_mountpoints() {
     fi
     
     # Let user select partition
-    echo -e "${GREEN}Select partition:${NC}"
+    echo -e "${GREEN}Select partition or free space:${NC}"
     SELECTED_OPTION=$(gum choose --cursor-prefix "> " --selected-prefix "* " "${PARTITION_OPTIONS[@]}")
     PARTITION=$(echo "$SELECTED_OPTION" | cut -d' ' -f1)
     
     # Handle free space selection
     if [ "$PARTITION" = "FREE_SPACE" ]; then
-        gum style --foreground 205 "Creating new partition in free space..."
-        
-        # Get next partition number
-        LAST_PART=$(parted /dev/$disk print 2>/dev/null | grep "^ " | tail -1 | awk '{print $1}')
-        NEXT_PART=$((LAST_PART + 1))
-        
-        # Get partition size
-        PART_SIZE=$(gum input --placeholder "Enter partition size (e.g., 20GB, 50%, 100%)")
-        
-        # Create partition
-        if [[ "$PART_SIZE" == *"%" ]]; then
-            parted /dev/$disk mkpart primary ext4 ${FREE_SPACE%G}GB ${PART_SIZE} --script
-        else
-            START_POS=$(parted /dev/$disk print free 2>/dev/null | grep "Free Space" | tail -1 | awk '{print $1}')
-            END_SIZE=${PART_SIZE%GB}
-            parted /dev/$disk mkpart primary ext4 ${START_POS} $((${START_POS%GB} + END_SIZE))GB --script
-        fi
-        
-        # Set the new partition name
-        if [[ "$disk" =~ nvme ]]; then
-            PARTITION="${disk}p${NEXT_PART}"
-        else
-            PARTITION="${disk}${NEXT_PART}"
-        fi
-        
-        gum style --foreground 46 "✓ Partition /dev/$PARTITION created"
+        create_partition_in_free_space "$disk"
+        return
     fi
     
+    # Verify partition exists
     if [ ! -b "/dev/$PARTITION" ]; then
-        gum style --foreground 196 "Partition /dev/$PARTITION not found"
+        gum style --foreground 196 "Error: Partition /dev/$PARTITION not found"
         gum input --placeholder "Press Enter to try again..."
         set_mountpoints "$disk"
         return
     fi
     
+    # Select mountpoint
     MOUNTPOINT=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
         "/" \
         "/boot" \
@@ -266,51 +257,6 @@ set_mountpoints() {
         MOUNTPOINT=$(gum input --placeholder "Enter custom mountpoint (e.g., /opt)")
     fi
     
-    # Ask if user wants to format the partition
-    FORMAT_CHOICE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
-        "Format partition" \
-        "Use existing filesystem")
-    
-    if [ "$FORMAT_CHOICE" = "Format partition" ]; then
-        # Select filesystem type based on mountpoint
-        if [ "$MOUNTPOINT" = "/boot/efi" ]; then
-            FS_TYPE="vfat"
-            gum style --foreground 205 "Formatting /dev/$PARTITION as FAT32..."
-            mkfs.fat -F32 /dev/$PARTITION
-        elif [ "$MOUNTPOINT" = "swap" ]; then
-            FS_TYPE="swap"
-            gum style --foreground 205 "Setting up swap on /dev/$PARTITION..."
-            mkswap /dev/$PARTITION
-        else
-            # Ask user for filesystem type
-            FS_TYPE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
-                "ext4" \
-                "ext3" \
-                "xfs" \
-                "btrfs")
-            
-            case $FS_TYPE in
-                "ext4")
-                    gum style --foreground 205 "Formatting /dev/$PARTITION as ext4..."
-                    mkfs.ext4 /dev/$PARTITION
-                    ;;
-                "ext3")
-                    gum style --foreground 205 "Formatting /dev/$PARTITION as ext3..."
-                    mkfs.ext3 /dev/$PARTITION
-                    ;;
-                "xfs")
-                    gum style --foreground 205 "Formatting /dev/$PARTITION as xfs..."
-                    mkfs.xfs /dev/$PARTITION
-                    ;;
-                "btrfs")
-                    gum style --foreground 205 "Formatting /dev/$PARTITION as btrfs..."
-                    mkfs.btrfs /dev/$PARTITION
-                    ;;
-            esac
-        fi
-        gum style --foreground 46 "✓ Formatting completed"
-    fi
-    
     # Check if mountpoint already exists
     if grep -q " -> $MOUNTPOINT$" /tmp/asiraos/mounts 2>/dev/null; then
         gum style --foreground 196 "Mountpoint $MOUNTPOINT already exists!"
@@ -319,29 +265,197 @@ set_mountpoints() {
         return
     fi
     
+    # Ask if user wants to format the partition
+    FORMAT_CHOICE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
+        "Format partition" \
+        "Use existing filesystem")
+    
+    if [ "$FORMAT_CHOICE" = "Format partition" ]; then
+        format_partition "/dev/$PARTITION" "$MOUNTPOINT"
+    fi
+    
     # Save mountpoint configuration
+    mkdir -p /tmp/asiraos
     echo "/dev/$PARTITION -> $MOUNTPOINT" >> /tmp/asiraos/mounts
     echo -e "${GREEN}Mountpoint set: /dev/$PARTITION -> $MOUNTPOINT${NC}"
     
     CHOICE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
         "Set Another Mountpoint" \
-        "Continue to Next Step" \
-        "Go Back to Disk Selection")
+        "🚀 Continue to Disk Selection" \
+        "Go Back")
     
     case $CHOICE in
         "Set Another Mountpoint")
             set_mountpoints "$disk"
             ;;
-        "Continue to Next Step")
-            main_menu
-            ;;
-        "Go Back to Disk Selection")
+        "🚀 Continue to Disk Selection")
             disk_selection
+            ;;
+        "Go Back")
+            manual_partition
             ;;
     esac
 }
 
-# Auto Partition
+# Create partition in free space
+create_partition_in_free_space() {
+    local disk=$1
+    
+    gum style --foreground 205 "Creating new partition in free space..."
+    
+    # Get free space info
+    FREE_SPACE_INFO=$(get_free_space "/dev/$disk")
+    FREE_START=$(echo "$FREE_SPACE_INFO" | awk '{print $1}')
+    FREE_SIZE=$(echo "$FREE_SPACE_INFO" | awk '{print $2}')
+    
+    if [ -z "$FREE_START" ] || [ "$FREE_SIZE" = "0GB" ]; then
+        gum style --foreground 196 "No free space available"
+        gum input --placeholder "Press Enter to continue..."
+        set_mountpoints "$disk"
+        return
+    fi
+    
+    # Get partition size from user
+    PART_SIZE=$(gum input --placeholder "Enter partition size (e.g., 20GB, 50%, or 'all' for remaining space)")
+    
+    if [ -z "$PART_SIZE" ]; then
+        gum style --foreground 196 "Invalid size"
+        gum input --placeholder "Press Enter to try again..."
+        create_partition_in_free_space "$disk"
+        return
+    fi
+    
+    # Calculate end position
+    if [ "$PART_SIZE" = "all" ]; then
+        END_POS="100%"
+    elif [[ "$PART_SIZE" == *"%" ]]; then
+        END_POS="$PART_SIZE"
+    else
+        # Convert to MB and calculate end
+        SIZE_MB=$(echo "$PART_SIZE" | sed 's/GB//' | awk '{print $1 * 1024}')
+        START_MB=$(echo "$FREE_START" | sed 's/GB//' | awk '{print $1 * 1024}')
+        END_MB=$((START_MB + SIZE_MB))
+        END_POS="${END_MB}MB"
+    fi
+    
+    # Get next partition number
+    LAST_PART=$(parted "/dev/$disk" print 2>/dev/null | awk '/^ *[0-9]/ {last=$1} END {print last}')
+    if [ -z "$LAST_PART" ]; then
+        NEXT_PART=1
+    else
+        NEXT_PART=$((LAST_PART + 1))
+    fi
+    
+    # Create partition
+    gum style --foreground 205 "Creating partition $NEXT_PART..."
+    parted "/dev/$disk" mkpart primary ext4 "$FREE_START" "$END_POS" --script
+    
+    # Wait for kernel to recognize new partition
+    sleep 2
+    partprobe "/dev/$disk"
+    udevadm settle
+    
+    # Construct partition device name
+    if [[ "$disk" =~ nvme ]]; then
+        NEW_PARTITION="${disk}p${NEXT_PART}"
+    else
+        NEW_PARTITION="${disk}${NEXT_PART}"
+    fi
+    
+    # Verify partition was created
+    if [ -b "/dev/$NEW_PARTITION" ]; then
+        gum style --foreground 46 "✓ Partition /dev/$NEW_PARTITION created successfully"
+        # Continue with mountpoint selection for the new partition
+        set_mountpoints_for_partition "$NEW_PARTITION"
+    else
+        gum style --foreground 196 "Failed to create partition"
+        gum input --placeholder "Press Enter to continue..."
+        set_mountpoints "$disk"
+    fi
+}
+
+# Set mountpoints for a specific partition
+set_mountpoints_for_partition() {
+    local partition=$1
+    
+    echo -e "${GREEN}Setting mountpoint for /dev/$partition${NC}"
+    
+    # Select mountpoint
+    MOUNTPOINT=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
+        "/" \
+        "/boot" \
+        "/boot/efi" \
+        "/home" \
+        "/var" \
+        "/tmp" \
+        "swap" \
+        "Custom")
+    
+    if [ "$MOUNTPOINT" = "Custom" ]; then
+        MOUNTPOINT=$(gum input --placeholder "Enter custom mountpoint (e.g., /opt)")
+    fi
+    
+    # Check if mountpoint already exists
+    if grep -q " -> $MOUNTPOINT$" /tmp/asiraos/mounts 2>/dev/null; then
+        gum style --foreground 196 "Mountpoint $MOUNTPOINT already exists!"
+        gum input --placeholder "Press Enter to try again..."
+        set_mountpoints_for_partition "$partition"
+        return
+    fi
+    
+    # Format the new partition
+    format_partition "/dev/$partition" "$MOUNTPOINT"
+    
+    # Save mountpoint configuration
+    mkdir -p /tmp/asiraos
+    echo "/dev/$partition -> $MOUNTPOINT" >> /tmp/asiraos/mounts
+    echo -e "${GREEN}Mountpoint set: /dev/$partition -> $MOUNTPOINT${NC}"
+    
+    disk_selection
+}
+
+# Format partition based on mountpoint
+format_partition() {
+    local partition=$1
+    local mountpoint=$2
+    
+    if [ "$mountpoint" = "/boot/efi" ]; then
+        gum style --foreground 205 "Formatting $partition as FAT32..."
+        mkfs.fat -F32 "$partition"
+    elif [ "$mountpoint" = "swap" ]; then
+        gum style --foreground 205 "Setting up swap on $partition..."
+        mkswap "$partition"
+    else
+        # Ask user for filesystem type
+        FS_TYPE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
+            "ext4" \
+            "ext3" \
+            "xfs" \
+            "btrfs")
+        
+        case $FS_TYPE in
+            "ext4")
+                gum style --foreground 205 "Formatting $partition as ext4..."
+                mkfs.ext4 "$partition"
+                ;;
+            "ext3")
+                gum style --foreground 205 "Formatting $partition as ext3..."
+                mkfs.ext3 "$partition"
+                ;;
+            "xfs")
+                gum style --foreground 205 "Formatting $partition as xfs..."
+                mkfs.xfs "$partition"
+                ;;
+            "btrfs")
+                gum style --foreground 205 "Formatting $partition as btrfs..."
+                mkfs.btrfs "$partition"
+                ;;
+        esac
+    fi
+    gum style --foreground 46 "✓ Formatting completed"
+}
+
+# Auto Partition with proper disk detection
 auto_partition() {
     show_banner
     gum style --foreground 214 "Auto Partition"
@@ -351,18 +465,7 @@ auto_partition() {
     if [ -d "/sys/firmware/efi" ]; then
         BOOT_MODE="EFI"
         gum style --foreground 46 "✓ EFI boot mode detected"
-        
-        # Ask user where to mount boot partition for EFI
-        gum style --foreground 205 "Choose boot partition mount point:"
-        BOOT_MOUNT=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
-            "/boot/efi (Recommended for EFI)" \
-            "/boot")
-        
-        if [[ "$BOOT_MOUNT" == *"/boot/efi"* ]]; then
-            BOOT_MOUNTPOINT="/boot/efi"
-        else
-            BOOT_MOUNTPOINT="/boot"
-        fi
+        BOOT_MOUNTPOINT="/boot/efi"
     else
         BOOT_MODE="BIOS"
         gum style --foreground 46 "✓ BIOS boot mode detected"
@@ -370,96 +473,107 @@ auto_partition() {
     fi
     echo ""
     
-    # Detect available disks and partitions
-    gum style --foreground 46 "Detecting available disks and partitions..."
+    # Get real available disks and partitions
+    gum style --foreground 46 "Detecting available storage..."
     ALL_OPTIONS=()
-    CURRENT_DISK=""
     
-    # Get disks and their partitions in tree format
-    while IFS= read -r line; do
-        RAW_NAME=$(echo "$line" | awk '{print $1}')
-        NAME=$(echo "$RAW_NAME" | sed 's/[├└─│ ]//g')  # Clean tree characters
-        SIZE=$(echo "$line" | awk '{print $4}')
-        TYPE=$(echo "$line" | awk '{print $6}')
-        
-        if [ "$TYPE" = "disk" ]; then
-            # Add disk
-            ALL_OPTIONS+=("$NAME ($SIZE)")
-            CURRENT_DISK="$NAME"
-            
-            # Check for free space on this disk
-            FREE_SPACE=$(parted /dev/$NAME print free 2>/dev/null | grep "Free Space" | tail -1 | awk '{print $3}')
-            if [ -n "$FREE_SPACE" ] && [ "$FREE_SPACE" != "0B" ]; then
-                ALL_OPTIONS+=(" └─ $CURRENT_DISK-freespace ($FREE_SPACE)")
-            fi
-        elif [ "$TYPE" = "part" ]; then
-            # Add partition with tree formatting
-            ALL_OPTIONS+=(" └─ $NAME ($SIZE)")
+    # Add whole disks
+    while read -r disk_line; do
+        if [ -n "$disk_line" ]; then
+            disk_name=$(echo "$disk_line" | awk '{print $1}' | sed 's|/dev/||')
+            disk_size=$(echo "$disk_line" | awk '{print $2}')
+            ALL_OPTIONS+=("$disk_name ($disk_size) - Whole Disk")
         fi
-    done < <(lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,MOUNTPOINT)
+    done < <(get_real_disks)
+    
+    # Add existing partitions
+    while read -r disk_line; do
+        if [ -n "$disk_line" ]; then
+            disk_path=$(echo "$disk_line" | awk '{print $1}')
+            disk_name=$(echo "$disk_path" | sed 's|/dev/||')
+            
+            while read -r part_line; do
+                if [ -n "$part_line" ]; then
+                    part_name=$(echo "$part_line" | awk '{print $1}' | sed 's|/dev/||')
+                    part_size=$(echo "$part_line" | awk '{print $2}')
+                    part_fstype=$(echo "$part_line" | awk '{print $3}')
+                    
+                    if [ "$part_fstype" = "" ]; then
+                        part_fstype="unformatted"
+                    fi
+                    
+                    ALL_OPTIONS+=(" └─ $part_name ($part_size, $part_fstype)")
+                fi
+            done < <(get_real_partitions "$disk_path")
+            
+            # Check for real free space
+            FREE_SPACE_INFO=$(get_free_space "$disk_path")
+            if [ -n "$FREE_SPACE_INFO" ]; then
+                FREE_SIZE=$(echo "$FREE_SPACE_INFO" | awk '{print $2}')
+                if [ "$FREE_SIZE" != "0GB" ] && [ "$FREE_SIZE" != "0.00GB" ]; then
+                    ALL_OPTIONS+=(" └─ ${disk_name}-freespace ($FREE_SIZE free)")
+                fi
+            fi
+        fi
+    done < <(get_real_disks)
     
     if [ ${#ALL_OPTIONS[@]} -eq 0 ]; then
-        gum style --foreground 196 "No disks found"
+        gum style --foreground 196 "No storage devices found"
         gum input --placeholder "Press Enter to go back..."
         disk_selection
         return
     fi
     
-    # Let user select disk/partition
-    gum style --foreground 46 "Select disk or partition for installation:"
+    # Let user select storage
+    gum style --foreground 46 "Select storage for installation:"
     SELECTED_OPTION=$(gum choose --cursor-prefix "> " --selected-prefix "* " "${ALL_OPTIONS[@]}")
     
     # Parse the selected option
-    if [[ "$SELECTED_OPTION" =~ ^[[:space:]]*└─[[:space:]]*(.*)[[:space:]]*\(.*\)$ ]]; then
+    if [[ "$SELECTED_OPTION" =~ ^[[:space:]]*└─[[:space:]]*(.*) ]]; then
         # It's a partition or free space (indented)
-        SELECTED_PARTITION=$(echo "${BASH_REMATCH[1]}" | awk '{print $1}')
+        SELECTED_TARGET=$(echo "${BASH_REMATCH[1]}" | awk '{print $1}')
     else
         # It's a whole disk
-        SELECTED_PARTITION=$(echo "$SELECTED_OPTION" | awk '{print $1}')
+        SELECTED_TARGET=$(echo "$SELECTED_OPTION" | awk '{print $1}')
     fi
     
-    # Handle free space selection
-    if [[ "$SELECTED_PARTITION" =~ -freespace$ ]]; then
-        # Extract parent disk name
-        PARENT_DISK=$(echo "$SELECTED_PARTITION" | sed 's/-freespace$//')
-        SELECTED_PARTITION="$PARENT_DISK"
-        FREE_SPACE_MODE=true
-        
-        # Ask for root filesystem type
-        gum style --foreground 205 "Select filesystem type for root partition:"
-        ROOT_FS=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
-            "ext4" \
-            "ext3" \
-            "xfs" \
-            "btrfs")
+    # Determine operation mode
+    if [[ "$SELECTED_TARGET" =~ -freespace$ ]]; then
+        # Free space mode
+        PARENT_DISK=$(echo "$SELECTED_TARGET" | sed 's/-freespace$//')
+        OPERATION_MODE="freespace"
+        TARGET_DISK="$PARENT_DISK"
+    elif [[ "$SELECTED_OPTION" =~ "Whole Disk" ]]; then
+        # Whole disk mode
+        OPERATION_MODE="wholedisk"
+        TARGET_DISK="$SELECTED_TARGET"
     else
-        FREE_SPACE_MODE=false
-        ROOT_FS="ext4"
+        # Single partition mode
+        OPERATION_MODE="partition"
+        TARGET_PARTITION="$SELECTED_TARGET"
+        TARGET_DISK=$(echo "$SELECTED_TARGET" | sed 's/[0-9]*$//' | sed 's/p$//')
     fi
     
-    # Show free space available
-    TOTAL_SIZE=$(echo "$SELECTED_OPTION" | grep -o '([^)]*)')
-    DISK_INFO=$(lsblk -b -n -o SIZE /dev/$SELECTED_PARTITION 2>/dev/null | head -1)
-    if [ -n "$DISK_INFO" ]; then
-        FREE_SPACE=$(echo "$DISK_INFO" | awk '{printf "%.1fG", $1/1024/1024/1024}')
-    else
-        FREE_SPACE="N/A"
-    fi
+    # Show selection info
     echo ""
-    echo -e "${GREEN}Selected: /dev/$SELECTED_PARTITION${NC}"
-    echo -e "${GREEN}Total Size: $TOTAL_SIZE${NC}"
-    echo -e "${GREEN}Available Space: $FREE_SPACE${NC}"
+    echo -e "${GREEN}Selected: $SELECTED_OPTION${NC}"
+    echo -e "${GREEN}Operation Mode: $OPERATION_MODE${NC}"
     echo ""
     
-    # Show appropriate warning based on selection type
-    if [ "$FREE_SPACE_MODE" = true ]; then
-        gum style --foreground 205 "INFO: Will create partitions in free space on /dev/$SELECTED_PARTITION"
-    else
-        gum style --foreground 196 "WARNING: This will erase all data on /dev/$SELECTED_PARTITION"
-    fi
-    CONFIRM=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
-        "Yes" \
-        "No")
+    # Show appropriate warning
+    case $OPERATION_MODE in
+        "wholedisk")
+            gum style --foreground 196 "WARNING: This will erase ALL data on /dev/$TARGET_DISK"
+            ;;
+        "freespace")
+            gum style --foreground 205 "INFO: Will create partitions in free space on /dev/$TARGET_DISK"
+            ;;
+        "partition")
+            gum style --foreground 196 "WARNING: This will erase data on /dev/$TARGET_PARTITION"
+            ;;
+    esac
+    
+    CONFIRM=$(gum choose --cursor-prefix "> " --selected-prefix "* " "Yes" "No")
     
     if [ "$CONFIRM" = "No" ]; then
         disk_selection
@@ -473,506 +587,531 @@ auto_partition() {
         "Standard (Boot + Root + Home)" \
         "Custom (Choose additional partitions)")
     
-        case $PARTITION_SCHEME in
-        "Basic (Boot + Root only)")
-            if [ "$FREE_SPACE_MODE" = true ]; then
-                create_basic_partitions_freespace "$SELECTED_PARTITION"
-            else
-                create_basic_partitions "$SELECTED_PARTITION"
-            fi
+    # Execute partitioning based on mode and scheme
+    case $OPERATION_MODE in
+        "wholedisk")
+            case $PARTITION_SCHEME in
+                "Basic (Boot + Root only)")
+                    create_basic_partitions_wholedisk "$TARGET_DISK"
+                    ;;
+                "Standard (Boot + Root + Home)")
+                    create_standard_partitions_wholedisk "$TARGET_DISK"
+                    ;;
+                "Custom (Choose additional partitions)")
+                    create_custom_partitions_wholedisk "$TARGET_DISK"
+                    ;;
+            esac
             ;;
-        "Standard (Boot + Root + Home)")
-            if [ "$FREE_SPACE_MODE" = true ]; then
-                create_standard_partitions_freespace "$SELECTED_PARTITION"
-            else
-                create_standard_partitions "$SELECTED_PARTITION"
-            fi
+        "freespace")
+            case $PARTITION_SCHEME in
+                "Basic (Boot + Root only)")
+                    create_basic_partitions_freespace "$TARGET_DISK"
+                    ;;
+                "Standard (Boot + Root + Home)")
+                    create_standard_partitions_freespace "$TARGET_DISK"
+                    ;;
+                "Custom (Choose additional partitions)")
+                    create_custom_partitions_freespace "$TARGET_DISK"
+                    ;;
+            esac
             ;;
-        "Custom (Choose additional partitions)")
-            if [ "$FREE_SPACE_MODE" = true ]; then
-                create_custom_partitions_freespace "$SELECTED_PARTITION"
-            else
-                create_custom_partitions "$SELECTED_PARTITION"
-            fi
+        "partition")
+            gum style --foreground 205 "Using existing partition /dev/$TARGET_PARTITION as root"
+            mkdir -p /tmp/asiraos
+            echo "/dev/$TARGET_PARTITION -> /" > /tmp/asiraos/mounts
+            gum style --foreground 46 "✓ Partition configured"
+            partition_complete
             ;;
     esac
 }
 
-# Create basic partitions (Boot + Root)
-create_basic_partitions() {
-    local partition=$1
-    echo -e "${CYAN}Creating basic partitions on /dev/${partition}...${NC}"
+# Create basic partitions on whole disk
+create_basic_partitions_wholedisk() {
+    local disk=$1
+    echo -e "${CYAN}Creating basic partitions on whole disk /dev/${disk}...${NC}"
     
-    # Check if user selected a whole disk or existing partition
-    if [[ "$partition" =~ p[0-9]+$ ]]; then
-        # User selected existing partition - delete it and recreate in same space
-        local disk_name=${partition%p*}
-        local part_num=${partition##*p}
+    # Clear existing mounts
+    rm -f /tmp/asiraos/mounts
+    mkdir -p /tmp/asiraos
+    
+    # Unmount any existing partitions
+    umount /dev/${disk}* 2>/dev/null || true
+    swapoff /dev/${disk}* 2>/dev/null || true
+    
+    # Create new partition table
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        gum style --foreground 205 "Creating GPT partition table..."
+        parted /dev/$disk mklabel gpt --script
         
-        # Get partition info BEFORE deleting it
-        local part_info=$(sudo parted /dev/${disk_name} unit MB print | grep "^ ${part_num}" | head -1)
-        local start_mb=$(echo "$part_info" | awk '{print $2}' | sed 's/MB//')
-        local end_mb=$(echo "$part_info" | awk '{print $3}' | sed 's/MB//')
+        echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
+        parted /dev/$disk mkpart primary fat32 1MB 1025MB --script
+        parted /dev/$disk set 1 boot on --script
         
-        echo -e "${YELLOW}Deleting existing partition ${partition}...${NC}"
-        sudo parted /dev/${disk_name} rm ${part_num} --script
-        
-        if [ -z "$start_mb" ]; then
-            echo -e "${RED}Could not determine partition boundaries${NC}"
-            echo -e "${YELLOW}Using available free space instead${NC}"
-            start_mb=$(sudo parted /dev/${disk_name} unit MB print free | grep "Free Space" | tail -1 | awk '{print $1}' | sed 's/MB//')
-            end_mb=$(sudo parted /dev/${disk_name} unit MB print free | grep "Free Space" | tail -1 | awk '{print $2}' | sed 's/MB//')
-        fi
-        
-        if [ "$BOOT_MODE" = "EFI" ]; then
-            local boot_end=$((start_mb + 1024))
-            
-            echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
-            sudo parted /dev/${disk_name} mkpart primary fat32 ${start_mb}MB ${boot_end}MB --script
-            sudo parted /dev/${disk_name} set ${part_num} boot on --script
-            
-            echo -e "${CYAN}- Creating Root partition (remaining space)${NC}"
-            sudo parted /dev/${disk_name} mkpart primary ext4 ${boot_end}MB ${end_mb}MB --script
-            
-            # Format and save mountpoints
-            echo -e "${CYAN}Formatting EFI partition: /dev/${disk_name}p${part_num}${NC}"
-            mkfs.fat -F32 /dev/${disk_name}p${part_num}
-            echo -e "${CYAN}Formatting root partition: /dev/${disk_name}p$((part_num + 1))${NC}"
-            mkfs.ext4 /dev/${disk_name}p$((part_num + 1))
-            
-            echo "/dev/${disk_name}p${part_num} -> /boot/efi" >> /tmp/asiraos/mounts
-            echo "/dev/${disk_name}p$((part_num + 1)) -> /" >> /tmp/asiraos/mounts
-        else
-            # BIOS mode
-            local boot_end=$((start_mb + 512))
-            
-            echo -e "${CYAN}- Creating BIOS Boot partition (512MB)${NC}"
-            sudo parted /dev/${disk_name} mkpart primary ext4 ${start_mb}MB ${boot_end}MB --script
-            sudo parted /dev/${disk_name} set ${part_num} boot on --script
-            
-            echo -e "${CYAN}- Creating Root partition (remaining space)${NC}"
-            sudo parted /dev/${disk_name} mkpart primary ext4 ${boot_end}MB ${end_mb}MB --script
-            
-            # Format and save mountpoints
-            echo -e "${CYAN}Formatting boot partition: /dev/${disk_name}p${part_num}${NC}"
-            mkfs.ext4 /dev/${disk_name}p${part_num}
-            echo -e "${CYAN}Formatting root partition: /dev/${disk_name}p$((part_num + 1))${NC}"
-            mkfs.ext4 /dev/${disk_name}p$((part_num + 1))
-            
-            echo "/dev/${disk_name}p${part_num} -> /boot" >> /tmp/asiraos/mounts
-            echo "/dev/${disk_name}p$((part_num + 1)) -> /" >> /tmp/asiraos/mounts
-        fi
+        echo -e "${CYAN}- Creating Root partition (remaining space)${NC}"
+        parted /dev/$disk mkpart primary ext4 1025MB 100% --script
     else
-        # User selected whole disk - wipe and create new partition table
-        echo -e "${YELLOW}Wiping disk ${partition}...${NC}"
+        gum style --foreground 205 "Creating MBR partition table..."
+        parted /dev/$disk mklabel msdos --script
         
-        if [ "$BOOT_MODE" = "EFI" ]; then
-            sudo parted /dev/${partition} mklabel gpt --script
-            
-            echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
-            sudo parted /dev/${partition} mkpart primary fat32 1MB 1025MB --script
-            sudo parted /dev/${partition} set 1 boot on --script
-            
-            echo -e "${CYAN}- Creating Root partition (remaining space)${NC}"
-            sudo parted /dev/${partition} mkpart primary ext4 1025MB 100% --script
-            
-            # Save mountpoints with proper partition naming
-            if [[ "$partition" =~ nvme ]]; then
-                echo "/dev/${partition}p1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
-                echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
-            else
-                echo "/dev/${partition}1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
-                echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
-            fi
-        else
-            # BIOS mode
-            sudo parted /dev/${partition} mklabel msdos --script
-            
-            echo -e "${CYAN}- Creating BIOS Boot partition (512MB)${NC}"
-            sudo parted /dev/${partition} mkpart primary ext4 1MB 513MB --script
-            sudo parted /dev/${partition} set 1 boot on --script
-            
-            echo -e "${CYAN}- Creating Root partition (remaining space)${NC}"
-            sudo parted /dev/${partition} mkpart primary ext4 513MB 100% --script
-            
-            # Save mountpoints with proper partition naming
-            if [[ "$partition" =~ nvme ]]; then
-                echo "/dev/${partition}p1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
-                echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
-            else
-                echo "/dev/${partition}1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
-                echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
-            fi
-        fi
+        echo -e "${CYAN}- Creating BIOS Boot partition (512MB)${NC}"
+        parted /dev/$disk mkpart primary ext4 1MB 513MB --script
+        parted /dev/$disk set 1 boot on --script
+        
+        echo -e "${CYAN}- Creating Root partition (remaining space)${NC}"
+        parted /dev/$disk mkpart primary ext4 513MB 100% --script
     fi
     
-    sleep 2
+    # Wait for kernel to recognize partitions
+    sleep 3
+    partprobe /dev/$disk
+    udevadm settle
+    
+    # Construct partition device names
+    if [[ "$disk" =~ nvme ]]; then
+        BOOT_DEV="/dev/${disk}p1"
+        ROOT_DEV="/dev/${disk}p2"
+    else
+        BOOT_DEV="/dev/${disk}1"
+        ROOT_DEV="/dev/${disk}2"
+    fi
     
     # Format partitions
     echo -e "${CYAN}Formatting partitions...${NC}"
     if [ "$BOOT_MODE" = "EFI" ]; then
-        if [[ "$partition" =~ nvme ]]; then
-            echo -e "${CYAN}Formatting EFI partition: /dev/${partition}p1${NC}"
-            mkfs.fat -F32 /dev/${partition}p1
-            echo -e "${CYAN}Formatting root partition: /dev/${partition}p2${NC}"
-            mkfs.ext4 /dev/${partition}p2
-        else
-            echo -e "${CYAN}Formatting EFI partition: /dev/${partition}1${NC}"
-            mkfs.fat -F32 /dev/${partition}1
-            echo -e "${CYAN}Formatting root partition: /dev/${partition}2${NC}"
-            mkfs.ext4 /dev/${partition}2
-        fi
+        mkfs.fat -F32 "$BOOT_DEV"
     else
-        # BIOS mode
-        if [[ "$partition" =~ nvme ]]; then
-            echo -e "${CYAN}Formatting boot partition: /dev/${partition}p1${NC}"
-            mkfs.ext4 /dev/${partition}p1
-            echo -e "${CYAN}Formatting root partition: /dev/${partition}p2${NC}"
-            mkfs.ext4 /dev/${partition}p2
-        else
-            echo -e "${CYAN}Formatting boot partition: /dev/${partition}1${NC}"
-            mkfs.ext4 /dev/${partition}1
-            echo -e "${CYAN}Formatting root partition: /dev/${partition}2${NC}"
-            mkfs.ext4 /dev/${partition}2
-        fi
+        mkfs.ext4 "$BOOT_DEV"
     fi
+    mkfs.ext4 "$ROOT_DEV"
     
-    echo -e "${GREEN}Basic partitions created successfully${NC}"
+    # Save mountpoints
+    echo "$BOOT_DEV -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
+    echo "$ROOT_DEV -> /" >> /tmp/asiraos/mounts
+    
+    echo -e "${GREEN}✓ Basic partitions created successfully${NC}"
     partition_complete
 }
 
-# Create standard partitions (Boot + Root + Home)
-create_standard_partitions() {
-    local partition=$1
-    echo -e "${CYAN}Creating standard partitions on /dev/${partition}...${NC}"
-    
-    if [ "$BOOT_MODE" = "EFI" ]; then
-        echo -e "${CYAN}- EFI Boot partition (1GB)${NC}"
-    else
-        echo -e "${CYAN}- BIOS Boot partition (512MB)${NC}"
-    fi
-    echo -e "${CYAN}- Root partition (30GB)${NC}"
-    echo -e "${CYAN}- Home partition (remaining space)${NC}"
-    sleep 2
-    
-    # Check if user selected a whole disk or existing partition
-    if [[ "$partition" =~ p[0-9]+$ ]]; then
-        # User selected existing partition - use it as root
-        echo "/dev/${partition} -> /" >> /tmp/asiraos/mounts
-        echo -e "${YELLOW}Note: Using existing partition ${partition} as root${NC}"
-        echo -e "${YELLOW}Please manually set boot and home partitions if needed${NC}"
-    else
-        # User selected whole disk - create new partitions
-        if [[ "$partition" =~ nvme ]]; then
-            echo "/dev/${partition}p1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
-            echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
-            echo "/dev/${partition}p3 -> /home" >> /tmp/asiraos/mounts
-        else
-            echo "/dev/${partition}1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
-            echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
-            echo "/dev/${partition}3 -> /home" >> /tmp/asiraos/mounts
-        fi
-    fi
-    
-    echo -e "${GREEN}Standard partitions created successfully${NC}"
-    partition_complete
-}
-
-# Create custom partitions
-create_custom_partitions() {
-    local partition=$1
-    echo -e "${CYAN}Creating custom partitions on /dev/${partition}...${NC}"
-    
-    if [ "$BOOT_MODE" = "EFI" ]; then
-        echo -e "${CYAN}- EFI Boot partition (1GB)${NC}"
-    else
-        echo -e "${CYAN}- BIOS Boot partition (512MB)${NC}"
-    fi
-    echo -e "${CYAN}- Root partition (30GB)${NC}"
-    
-    # Check if user selected a whole disk or existing partition
-    if [[ "$partition" =~ p[0-9]+$ ]]; then
-        # User selected existing partition - use it as root
-        echo "/dev/${partition} -> /" >> /tmp/asiraos/mounts
-        echo -e "${YELLOW}Note: Using existing partition ${partition} as root${NC}"
-    else
-        # User selected whole disk - create new partitions
-        if [[ "$partition" =~ nvme ]]; then
-            echo "/dev/${partition}p1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
-            echo "/dev/${partition}p2 -> /" >> /tmp/asiraos/mounts
-            local part_prefix="p"
-            local base_partition="$partition"
-        else
-            echo "/dev/${partition}1 -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
-            echo "/dev/${partition}2 -> /" >> /tmp/asiraos/mounts
-            local part_prefix=""
-            local base_partition="$partition"
-        fi
-        
-        local part_num=3
-        
-        # Ask for additional partitions
-        ADDITIONAL_PARTITIONS=$(gum choose --no-limit --cursor-prefix "> " --selected-prefix "* " \
-            "Home partition" \
-            "Swap partition" \
-            "Var partition" \
-            "Tmp partition")
-        
-        if [[ $ADDITIONAL_PARTITIONS == *"Home partition"* ]]; then
-            echo -e "${CYAN}- Home partition (20GB)${NC}"
-            echo "/dev/${base_partition}${part_prefix}${part_num} -> /home" >> /tmp/asiraos/mounts
-            ((part_num++))
-        fi
-        if [[ $ADDITIONAL_PARTITIONS == *"Swap partition"* ]]; then
-            echo -e "${CYAN}- Swap partition (4GB)${NC}"
-            echo "/dev/${base_partition}${part_prefix}${part_num} -> swap" >> /tmp/asiraos/mounts
-            ((part_num++))
-        fi
-        if [[ $ADDITIONAL_PARTITIONS == *"Var partition"* ]]; then
-            echo -e "${CYAN}- Var partition (10GB)${NC}"
-            echo "/dev/${base_partition}${part_prefix}${part_num} -> /var" >> /tmp/asiraos/mounts
-            ((part_num++))
-        fi
-        if [[ $ADDITIONAL_PARTITIONS == *"Tmp partition"* ]]; then
-            echo -e "${CYAN}- Tmp partition (5GB)${NC}"
-            echo "/dev/${base_partition}${part_prefix}${part_num} -> /tmp" >> /tmp/asiraos/mounts
-            ((part_num++))
-        fi
-    fi
-    
-    sleep 2
-    echo -e "${GREEN}Custom partitions created successfully${NC}"
-    partition_complete
-}
-
-# Partition completion
-partition_complete() {
-    CHOICE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
-        "Continue to next step" \
-        "Go Back to Disk Selection")
-    
-    case $CHOICE in
-        "Continue to next step")
-            disk_selection
-            ;;
-        "Go Back to Disk Selection")
-            disk_selection
-            ;;
-    esac
-}
-
-# Create basic partitions in free space
-create_basic_partitions_freespace() {
+# Create standard partitions on whole disk
+create_standard_partitions_wholedisk() {
     local disk=$1
+    echo -e "${CYAN}Creating standard partitions on whole disk /dev/${disk}...${NC}"
     
-    # FORCE CLEAR ALL MOUNTS
-    rm -rf /tmp/asiraos
+    # Clear existing mounts
+    rm -f /tmp/asiraos/mounts
     mkdir -p /tmp/asiraos
     
-    echo -e "${RED}=== EXISTING PARTITIONS ===${NC}"
-    lsblk /dev/$disk
-    
-    # Get ALL existing partition numbers for this disk
-    EXISTING_PARTS=$(lsblk -n /dev/$disk | grep -E "${disk}p?[0-9]+" | sed -E "s/.*${disk}p?([0-9]+).*/\1/" | sort -n)
-    echo "Existing partition numbers: $EXISTING_PARTS"
-    
-    # Find the HIGHEST existing partition number
-    if [ -n "$EXISTING_PARTS" ]; then
-        HIGHEST=$(echo "$EXISTING_PARTS" | tail -1)
-    else
-        HIGHEST=0
-    fi
-    
-    # Calculate NEW partition numbers (next available)
-    NEW_BOOT=$((HIGHEST + 1))
-    NEW_ROOT=$((HIGHEST + 2))
-    
-    echo -e "${GREEN}Will create NEW partitions:${NC}"
-    if [[ "$disk" =~ nvme ]]; then
-        NEW_BOOT_DEV="/dev/${disk}p${NEW_BOOT}"
-        NEW_ROOT_DEV="/dev/${disk}p${NEW_ROOT}"
-    else
-        NEW_BOOT_DEV="/dev/${disk}${NEW_BOOT}"
-        NEW_ROOT_DEV="/dev/${disk}${NEW_ROOT}"
-    fi
-    
-    if [ "$BOOT_MODE" = "EFI" ]; then
-        echo "EFI Boot: $NEW_BOOT_DEV (partition $NEW_BOOT)"
-        echo "Root: $NEW_ROOT_DEV (partition $NEW_ROOT)"
-    else
-        echo "BIOS Boot: $NEW_BOOT_DEV (partition $NEW_BOOT)"
-        echo "Root: $NEW_ROOT_DEV (partition $NEW_ROOT)"
-    fi
-    
-    # Check if these partitions already exist (safety check)
-    if [ -b "$NEW_BOOT_DEV" ] || [ -b "$NEW_ROOT_DEV" ]; then
-        echo -e "${RED}ERROR: Calculated partitions already exist!${NC}"
-        echo "Boot device exists: $([ -b "$NEW_BOOT_DEV" ] && echo "YES" || echo "NO")"
-        echo "Root device exists: $([ -b "$NEW_ROOT_DEV" ] && echo "YES" || echo "NO")"
-        echo "Continuing anyway..."
-    fi
-    
-    # Get free space
-    FREE_INFO=$(parted /dev/$disk print free 2>/dev/null | grep "Free Space" | tail -1)
-    FREE_START=$(echo "$FREE_INFO" | awk '{print $1}')
-    FREE_END=$(echo "$FREE_INFO" | awk '{print $2}')
-    
-    echo "Using free space: $FREE_START to $FREE_END"
-    
-    # UNMOUNT any existing partitions on this disk first
-    echo -e "${YELLOW}Unmounting any existing partitions on $disk...${NC}"
+    # Unmount any existing partitions
     umount /dev/${disk}* 2>/dev/null || true
     swapoff /dev/${disk}* 2>/dev/null || true
     
-    # Force unmount anything mounted under /mnt
-    umount -R /mnt 2>/dev/null || true
-    
-    sleep 2
-    
-    # Create NEW partitions based on boot mode
+    # Create new partition table
     if [ "$BOOT_MODE" = "EFI" ]; then
-        BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 1024}')
+        parted /dev/$disk mklabel gpt --script
         
-        echo -e "${CYAN}Creating partition $NEW_BOOT (EFI boot)... (this may take a moment)${NC}"
-        parted /dev/$disk mkpart primary fat32 $FREE_START $BOOT_END --script
-        parted /dev/$disk set $NEW_BOOT boot on --script
+        echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
+        parted /dev/$disk mkpart primary fat32 1MB 1025MB --script
+        parted /dev/$disk set 1 boot on --script
         
-        echo -e "${CYAN}Creating partition $NEW_ROOT (root)... (this may take a moment for large partitions)${NC}"
-        parted /dev/$disk mkpart primary ext4 $BOOT_END $FREE_END --script
+        echo -e "${CYAN}- Creating Root partition (30GB)${NC}"
+        parted /dev/$disk mkpart primary ext4 1025MB 31745MB --script
+        
+        echo -e "${CYAN}- Creating Home partition (remaining space)${NC}"
+        parted /dev/$disk mkpart primary ext4 31745MB 100% --script
     else
-        # BIOS mode
-        BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 512}')
+        parted /dev/$disk mklabel msdos --script
         
-        echo -e "${CYAN}Creating partition $NEW_BOOT (BIOS boot)... (this may take a moment)${NC}"
-        parted /dev/$disk mkpart primary ext4 $FREE_START $BOOT_END --script
-        parted /dev/$disk set $NEW_BOOT boot on --script
+        echo -e "${CYAN}- Creating BIOS Boot partition (512MB)${NC}"
+        parted /dev/$disk mkpart primary ext4 1MB 513MB --script
+        parted /dev/$disk set 1 boot on --script
         
-        echo -e "${CYAN}Creating partition $NEW_ROOT (root)... (this may take a moment for large partitions)${NC}"
-        parted /dev/$disk mkpart primary ext4 $BOOT_END $FREE_END --script
+        echo -e "${CYAN}- Creating Root partition (30GB)${NC}"
+        parted /dev/$disk mkpart primary ext4 513MB 31233MB --script
+        
+        echo -e "${CYAN}- Creating Home partition (remaining space)${NC}"
+        parted /dev/$disk mkpart primary ext4 31233MB 100% --script
     fi
     
-    # Force system to recognize new partitions
-    echo -e "${CYAN}Refreshing partition table...${NC}"
+    # Wait for kernel to recognize partitions
+    sleep 3
     partprobe /dev/$disk
     udevadm settle
     
-    # Force re-read partition table multiple ways
-    blockdev --rereadpt /dev/$disk 2>/dev/null || true
-    if [ -w "/sys/block/${disk}/device/rescan" ]; then
-        echo 1 > /sys/block/${disk}/device/rescan 2>/dev/null || true
-    fi
-    
-    sleep 5
-    
-    # Try to trigger udev again
-    udevadm trigger --subsystem-match=block
-    udevadm settle
-    
-    echo -e "${RED}=== AFTER CREATION ===${NC}"
-    lsblk /dev/$disk
-    
-    # Force another partition table refresh
-    partprobe /dev/$disk 2>/dev/null || true
-    udevadm settle
-    sleep 2
-    
-    # Verify new partitions exist (ignore warnings about old partitions)
-    echo -e "${CYAN}Checking for new partitions...${NC}"
-    if [ -b "$NEW_BOOT_DEV" ]; then
-        echo -e "${GREEN}✓ Boot partition created: $NEW_BOOT_DEV${NC}"
+    # Construct partition device names
+    if [[ "$disk" =~ nvme ]]; then
+        BOOT_DEV="/dev/${disk}p1"
+        ROOT_DEV="/dev/${disk}p2"
+        HOME_DEV="/dev/${disk}p3"
     else
-        echo -e "${RED}✗ Boot partition missing: $NEW_BOOT_DEV${NC}"
+        BOOT_DEV="/dev/${disk}1"
+        ROOT_DEV="/dev/${disk}2"
+        HOME_DEV="/dev/${disk}3"
     fi
     
-    if [ -b "$NEW_ROOT_DEV" ]; then
-        echo -e "${GREEN}✓ Root partition created: $NEW_ROOT_DEV${NC}"
-    else
-        echo -e "${RED}✗ Root partition missing: $NEW_ROOT_DEV${NC}"
-    fi
-    
-    # Format ONLY the NEW partitions based on boot mode
+    # Format partitions
+    echo -e "${CYAN}Formatting partitions...${NC}"
     if [ "$BOOT_MODE" = "EFI" ]; then
-        echo -e "${GREEN}Formatting NEW EFI partition: $NEW_BOOT_DEV (quick format)${NC}"
-        mkfs.fat -F32 $NEW_BOOT_DEV
-        
-        echo -e "${GREEN}Formatting NEW partition: $NEW_ROOT_DEV (this will take time for large partitions...)${NC}"
-        mkfs.ext4 $NEW_ROOT_DEV
-        
-        # Save ONLY the NEW partitions - ALWAYS create this file
-        mkdir -p /tmp/asiraos
-        echo "$NEW_BOOT_DEV -> $BOOT_MOUNTPOINT" > /tmp/asiraos/mounts
-        echo "$NEW_ROOT_DEV -> /" >> /tmp/asiraos/mounts
+        mkfs.fat -F32 "$BOOT_DEV"
     else
-        # BIOS mode
-        echo -e "${GREEN}Formatting NEW BIOS boot partition: $NEW_BOOT_DEV${NC}"
-        mkfs.ext4 $NEW_BOOT_DEV
-        
-        echo -e "${GREEN}Formatting NEW partition: $NEW_ROOT_DEV (this will take time for large partitions...)${NC}"
-        mkfs.ext4 $NEW_ROOT_DEV
-        
-        # Save ONLY the NEW partitions - ALWAYS create this file
-        mkdir -p /tmp/asiraos
-        echo "$NEW_BOOT_DEV -> $BOOT_MOUNTPOINT" > /tmp/asiraos/mounts
-        echo "$NEW_ROOT_DEV -> /" >> /tmp/asiraos/mounts
+        mkfs.ext4 "$BOOT_DEV"
     fi
+    mkfs.ext4 "$ROOT_DEV"
+    mkfs.ext4 "$HOME_DEV"
     
-    echo -e "${GREEN}=== FINAL MOUNTS ===${NC}"
-    if [ -f /tmp/asiraos/mounts ]; then
-        cat /tmp/asiraos/mounts
-    else
-        echo "ERROR: Mounts file not created!"
-    fi
+    # Save mountpoints
+    echo "$BOOT_DEV -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
+    echo "$ROOT_DEV -> /" >> /tmp/asiraos/mounts
+    echo "$HOME_DEV -> /home" >> /tmp/asiraos/mounts
     
-    echo -e "${GREEN}✓ NEW partitions created and saved${NC}"
+    echo -e "${GREEN}✓ Standard partitions created successfully${NC}"
     partition_complete
 }
 
-# Create standard partitions in free space
+# Create custom partitions on whole disk
+create_custom_partitions_wholedisk() {
+    local disk=$1
+    echo -e "${CYAN}Creating custom partitions on whole disk /dev/${disk}...${NC}"
+    
+    # Clear existing mounts
+    rm -f /tmp/asiraos/mounts
+    mkdir -p /tmp/asiraos
+    
+    # Ask for additional partitions
+    ADDITIONAL_PARTITIONS=$(gum choose --no-limit --cursor-prefix "> " --selected-prefix "* " \
+        "Home partition" \
+        "Swap partition" \
+        "Var partition" \
+        "Tmp partition")
+    
+    # Unmount any existing partitions
+    umount /dev/${disk}* 2>/dev/null || true
+    swapoff /dev/${disk}* 2>/dev/null || true
+    
+    # Create new partition table
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        parted /dev/$disk mklabel gpt --script
+        
+        echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
+        parted /dev/$disk mkpart primary fat32 1MB 1025MB --script
+        parted /dev/$disk set 1 boot on --script
+        
+        echo -e "${CYAN}- Creating Root partition (30GB)${NC}"
+        parted /dev/$disk mkpart primary ext4 1025MB 31745MB --script
+        
+        local next_start=31745
+        local part_num=3
+    else
+        parted /dev/$disk mklabel msdos --script
+        
+        echo -e "${CYAN}- Creating BIOS Boot partition (512MB)${NC}"
+        parted /dev/$disk mkpart primary ext4 1MB 513MB --script
+        parted /dev/$disk set 1 boot on --script
+        
+        echo -e "${CYAN}- Creating Root partition (30GB)${NC}"
+        parted /dev/$disk mkpart primary ext4 513MB 31233MB --script
+        
+        local next_start=31233
+        local part_num=3
+    fi
+    
+    # Create additional partitions
+    if [[ $ADDITIONAL_PARTITIONS == *"Swap partition"* ]]; then
+        echo -e "${CYAN}- Creating Swap partition (4GB)${NC}"
+        local swap_end=$((next_start + 4096))
+        parted /dev/$disk mkpart primary linux-swap ${next_start}MB ${swap_end}MB --script
+        next_start=$swap_end
+        ((part_num++))
+    fi
+    
+    if [[ $ADDITIONAL_PARTITIONS == *"Var partition"* ]]; then
+        echo -e "${CYAN}- Creating Var partition (10GB)${NC}"
+        local var_end=$((next_start + 10240))
+        parted /dev/$disk mkpart primary ext4 ${next_start}MB ${var_end}MB --script
+        next_start=$var_end
+        ((part_num++))
+    fi
+    
+    if [[ $ADDITIONAL_PARTITIONS == *"Tmp partition"* ]]; then
+        echo -e "${CYAN}- Creating Tmp partition (5GB)${NC}"
+        local tmp_end=$((next_start + 5120))
+        parted /dev/$disk mkpart primary ext4 ${next_start}MB ${tmp_end}MB --script
+        next_start=$tmp_end
+        ((part_num++))
+    fi
+    
+    if [[ $ADDITIONAL_PARTITIONS == *"Home partition"* ]]; then
+        echo -e "${CYAN}- Creating Home partition (remaining space)${NC}"
+        parted /dev/$disk mkpart primary ext4 ${next_start}MB 100% --script
+        ((part_num++))
+    fi
+    
+    # Wait for kernel to recognize partitions
+    sleep 3
+    partprobe /dev/$disk
+    udevadm settle
+    
+    # Format and save mountpoints
+    local current_part=1
+    
+    # Boot partition
+    if [[ "$disk" =~ nvme ]]; then
+        BOOT_DEV="/dev/${disk}p${current_part}"
+    else
+        BOOT_DEV="/dev/${disk}${current_part}"
+    fi
+    
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        mkfs.fat -F32 "$BOOT_DEV"
+    else
+        mkfs.ext4 "$BOOT_DEV"
+    fi
+    echo "$BOOT_DEV -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
+    ((current_part++))
+    
+    # Root partition
+    if [[ "$disk" =~ nvme ]]; then
+        ROOT_DEV="/dev/${disk}p${current_part}"
+    else
+        ROOT_DEV="/dev/${disk}${current_part}"
+    fi
+    mkfs.ext4 "$ROOT_DEV"
+    echo "$ROOT_DEV -> /" >> /tmp/asiraos/mounts
+    ((current_part++))
+    
+    # Additional partitions
+    if [[ $ADDITIONAL_PARTITIONS == *"Swap partition"* ]]; then
+        if [[ "$disk" =~ nvme ]]; then
+            SWAP_DEV="/dev/${disk}p${current_part}"
+        else
+            SWAP_DEV="/dev/${disk}${current_part}"
+        fi
+        mkswap "$SWAP_DEV"
+        echo "$SWAP_DEV -> swap" >> /tmp/asiraos/mounts
+        ((current_part++))
+    fi
+    
+    if [[ $ADDITIONAL_PARTITIONS == *"Var partition"* ]]; then
+        if [[ "$disk" =~ nvme ]]; then
+            VAR_DEV="/dev/${disk}p${current_part}"
+        else
+            VAR_DEV="/dev/${disk}${current_part}"
+        fi
+        mkfs.ext4 "$VAR_DEV"
+        echo "$VAR_DEV -> /var" >> /tmp/asiraos/mounts
+        ((current_part++))
+    fi
+    
+    if [[ $ADDITIONAL_PARTITIONS == *"Tmp partition"* ]]; then
+        if [[ "$disk" =~ nvme ]]; then
+            TMP_DEV="/dev/${disk}p${current_part}"
+        else
+            TMP_DEV="/dev/${disk}${current_part}"
+        fi
+        mkfs.ext4 "$TMP_DEV"
+        echo "$TMP_DEV -> /tmp" >> /tmp/asiraos/mounts
+        ((current_part++))
+    fi
+    
+    if [[ $ADDITIONAL_PARTITIONS == *"Home partition"* ]]; then
+        if [[ "$disk" =~ nvme ]]; then
+            HOME_DEV="/dev/${disk}p${current_part}"
+        else
+            HOME_DEV="/dev/${disk}${current_part}"
+        fi
+        mkfs.ext4 "$HOME_DEV"
+        echo "$HOME_DEV -> /home" >> /tmp/asiraos/mounts
+        ((current_part++))
+    fi
+    
+    echo -e "${GREEN}✓ Custom partitions created successfully${NC}"
+    partition_complete
+}
+
+# Create basic partitions in free space - FIXED VERSION
+create_basic_partitions_freespace() {
+    local disk=$1
+    
+    echo -e "${CYAN}Creating basic partitions in free space on /dev/${disk}...${NC}"
+    
+    # Clear existing mounts
+    rm -f /tmp/asiraos/mounts
+    mkdir -p /tmp/asiraos
+    
+    # Get real free space information
+    FREE_SPACE_INFO=$(get_free_space "/dev/$disk")
+    if [ -z "$FREE_SPACE_INFO" ]; then
+        gum style --foreground 196 "ERROR: No free space found on /dev/$disk"
+        gum input --placeholder "Press Enter to continue..."
+        disk_selection
+        return
+    fi
+    
+    FREE_START=$(echo "$FREE_SPACE_INFO" | awk '{print $1}')
+    FREE_SIZE=$(echo "$FREE_SPACE_INFO" | awk '{print $2}')
+    
+    if [ "$FREE_SIZE" = "0GB" ] || [ "$FREE_SIZE" = "0.00GB" ]; then
+        gum style --foreground 196 "ERROR: No usable free space available"
+        gum input --placeholder "Press Enter to continue..."
+        disk_selection
+        return
+    fi
+    
+    echo -e "${GREEN}Found free space: $FREE_SIZE starting at $FREE_START${NC}"
+    
+    # Get next available partition numbers
+    LAST_PART=$(parted "/dev/$disk" print 2>/dev/null | awk '/^ *[0-9]/ {last=$1} END {print last}')
+    if [ -z "$LAST_PART" ]; then
+        BOOT_PART=1
+        ROOT_PART=2
+    else
+        BOOT_PART=$((LAST_PART + 1))
+        ROOT_PART=$((LAST_PART + 2))
+    fi
+    
+    echo -e "${GREEN}Will create partitions: $BOOT_PART (boot) and $ROOT_PART (root)${NC}"
+    
+    # Unmount any existing partitions on this disk
+    umount /dev/${disk}* 2>/dev/null || true
+    swapoff /dev/${disk}* 2>/dev/null || true
+    
+    # Create partitions based on boot mode
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        # Calculate boot partition end (1GB from start)
+        BOOT_SIZE_GB=1
+        BOOT_END=$(echo "$FREE_START" | sed 's/GB//' | awk -v size="$BOOT_SIZE_GB" '{printf "%.2fGB", $1 + size}')
+        
+        echo -e "${CYAN}Creating EFI boot partition: $FREE_START to $BOOT_END${NC}"
+        parted "/dev/$disk" mkpart primary fat32 "$FREE_START" "$BOOT_END" --script
+        parted "/dev/$disk" set "$BOOT_PART" boot on --script
+        
+        echo -e "${CYAN}Creating root partition: $BOOT_END to end of free space${NC}"
+        parted "/dev/$disk" mkpart primary ext4 "$BOOT_END" "100%" --script
+    else
+        # BIOS mode - 512MB boot partition
+        BOOT_SIZE_GB=0.5
+        BOOT_END=$(echo "$FREE_START" | sed 's/GB//' | awk -v size="$BOOT_SIZE_GB" '{printf "%.2fGB", $1 + size}')
+        
+        echo -e "${CYAN}Creating BIOS boot partition: $FREE_START to $BOOT_END${NC}"
+        parted "/dev/$disk" mkpart primary ext4 "$FREE_START" "$BOOT_END" --script
+        parted "/dev/$disk" set "$BOOT_PART" boot on --script
+        
+        echo -e "${CYAN}Creating root partition: $BOOT_END to end of free space${NC}"
+        parted "/dev/$disk" mkpart primary ext4 "$BOOT_END" "100%" --script
+    fi
+    
+    # Wait for kernel to recognize new partitions
+    echo -e "${CYAN}Waiting for system to recognize new partitions...${NC}"
+    sleep 3
+    partprobe "/dev/$disk"
+    udevadm settle
+    sleep 2
+    
+    # Construct partition device names
+    if [[ "$disk" =~ nvme ]]; then
+        BOOT_DEV="/dev/${disk}p${BOOT_PART}"
+        ROOT_DEV="/dev/${disk}p${ROOT_PART}"
+    else
+        BOOT_DEV="/dev/${disk}${BOOT_PART}"
+        ROOT_DEV="/dev/${disk}${ROOT_PART}"
+    fi
+    
+    # Verify partitions were created
+    if [ ! -b "$BOOT_DEV" ]; then
+        gum style --foreground 196 "ERROR: Boot partition $BOOT_DEV was not created"
+        gum input --placeholder "Press Enter to continue..."
+        disk_selection
+        return
+    fi
+    
+    if [ ! -b "$ROOT_DEV" ]; then
+        gum style --foreground 196 "ERROR: Root partition $ROOT_DEV was not created"
+        gum input --placeholder "Press Enter to continue..."
+        disk_selection
+        return
+    fi
+    
+    # Format partitions
+    echo -e "${CYAN}Formatting partitions...${NC}"
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        echo -e "${GREEN}Formatting $BOOT_DEV as FAT32...${NC}"
+        mkfs.fat -F32 "$BOOT_DEV"
+    else
+        echo -e "${GREEN}Formatting $BOOT_DEV as ext4...${NC}"
+        mkfs.ext4 "$BOOT_DEV"
+    fi
+    
+    echo -e "${GREEN}Formatting $ROOT_DEV as ext4...${NC}"
+    mkfs.ext4 "$ROOT_DEV"
+    
+    # Save mountpoints
+    echo "$BOOT_DEV -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
+    echo "$ROOT_DEV -> /" >> /tmp/asiraos/mounts
+    
+    echo -e "${GREEN}✓ Basic partitions created successfully in free space${NC}"
+    echo -e "${GREEN}Boot: $BOOT_DEV -> $BOOT_MOUNTPOINT${NC}"
+    echo -e "${GREEN}Root: $ROOT_DEV -> /${NC}"
+    
+    partition_complete
+}
+
+# Create standard partitions in free space - FIXED VERSION
 create_standard_partitions_freespace() {
     local disk=$1
     echo -e "${CYAN}Creating standard partitions in free space on /dev/${disk}...${NC}"
     
-    # Clear any existing mounts to avoid conflicts
+    # Clear existing mounts
     rm -f /tmp/asiraos/mounts
     mkdir -p /tmp/asiraos
     
-    # Get free space info
-    FREE_START=$(parted /dev/$disk print free 2>/dev/null | grep "Free Space" | tail -1 | awk '{print $1}')
-    FREE_END=$(parted /dev/$disk print free 2>/dev/null | grep "Free Space" | tail -1 | awk '{print $2}')
+    # Get real free space information
+    FREE_SPACE_INFO=$(get_free_space "/dev/$disk")
+    if [ -z "$FREE_SPACE_INFO" ]; then
+        gum style --foreground 196 "ERROR: No free space found"
+        gum input --placeholder "Press Enter to continue..."
+        disk_selection
+        return
+    fi
+    
+    FREE_START=$(echo "$FREE_SPACE_INFO" | awk '{print $1}')
+    FREE_SIZE=$(echo "$FREE_SPACE_INFO" | awk '{print $2}')
     
     # Get next available partition numbers
-    LAST_PART=$(parted /dev/$disk print 2>/dev/null | awk '/^ *[0-9]/ {last=$1} END {print last}')
+    LAST_PART=$(parted "/dev/$disk" print 2>/dev/null | awk '/^ *[0-9]/ {last=$1} END {print last}')
     if [ -z "$LAST_PART" ]; then
-        LAST_PART=0
-    fi
-    BOOT_PART=$((LAST_PART + 1))
-    ROOT_PART=$((LAST_PART + 2))
-    HOME_PART=$((LAST_PART + 3))
-    
-    if [ "$BOOT_MODE" = "EFI" ]; then
-        echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
-        BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 1024}')
-        parted /dev/$disk mkpart primary fat32 $FREE_START $BOOT_END --script
-        parted /dev/$disk set $BOOT_PART boot on --script
+        BOOT_PART=1
+        ROOT_PART=2
+        HOME_PART=3
     else
-        echo -e "${CYAN}- Creating BIOS Boot partition (512MB)${NC}"
-        BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 512}')
-        parted /dev/$disk mkpart primary ext4 $FREE_START $BOOT_END --script
-        parted /dev/$disk set $BOOT_PART boot on --script
+        BOOT_PART=$((LAST_PART + 1))
+        ROOT_PART=$((LAST_PART + 2))
+        HOME_PART=$((LAST_PART + 3))
     fi
     
-    echo -e "${CYAN}- Creating Root partition (30GB)${NC}"
-    ROOT_END=$(echo "$BOOT_END" | sed 's/MB//' | awk '{printf "%.0fMB", $1 + 30720}')
-    parted /dev/$disk mkpart primary $ROOT_FS $BOOT_END $ROOT_END --script
+    # Create partitions
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        BOOT_END=$(echo "$FREE_START" | sed 's/GB//' | awk '{printf "%.2fGB", $1 + 1}')
+        ROOT_END=$(echo "$BOOT_END" | sed 's/GB//' | awk '{printf "%.2fGB", $1 + 30}')
+        
+        parted "/dev/$disk" mkpart primary fat32 "$FREE_START" "$BOOT_END" --script
+        parted "/dev/$disk" set "$BOOT_PART" boot on --script
+        parted "/dev/$disk" mkpart primary ext4 "$BOOT_END" "$ROOT_END" --script
+        parted "/dev/$disk" mkpart primary ext4 "$ROOT_END" "100%" --script
+    else
+        BOOT_END=$(echo "$FREE_START" | sed 's/GB//' | awk '{printf "%.2fGB", $1 + 0.5}')
+        ROOT_END=$(echo "$BOOT_END" | sed 's/GB//' | awk '{printf "%.2fGB", $1 + 30}')
+        
+        parted "/dev/$disk" mkpart primary ext4 "$FREE_START" "$BOOT_END" --script
+        parted "/dev/$disk" set "$BOOT_PART" boot on --script
+        parted "/dev/$disk" mkpart primary ext4 "$BOOT_END" "$ROOT_END" --script
+        parted "/dev/$disk" mkpart primary ext4 "$ROOT_END" "100%" --script
+    fi
     
-    echo -e "${CYAN}- Creating Home partition (remaining space)${NC}"
-    parted /dev/$disk mkpart primary ext4 $ROOT_END $FREE_END --script
-    
-    # Wait for kernel to recognize new partitions
+    # Wait for kernel recognition
     sleep 3
-    partprobe /dev/$disk
+    partprobe "/dev/$disk"
+    udevadm settle
     
-    # Construct correct partition device names
+    # Construct device names
     if [[ "$disk" =~ nvme ]]; then
         BOOT_DEV="/dev/${disk}p${BOOT_PART}"
         ROOT_DEV="/dev/${disk}p${ROOT_PART}"
@@ -984,104 +1123,203 @@ create_standard_partitions_freespace() {
     fi
     
     # Format partitions
-    echo -e "${CYAN}Formatting partitions...${NC}"
     if [ "$BOOT_MODE" = "EFI" ]; then
-        mkfs.fat -F32 $BOOT_DEV
+        mkfs.fat -F32 "$BOOT_DEV"
     else
-        mkfs.ext4 $BOOT_DEV
+        mkfs.ext4 "$BOOT_DEV"
     fi
-    
-    case $ROOT_FS in
-        "ext4") mkfs.ext4 $ROOT_DEV ;;
-        "ext3") mkfs.ext3 $ROOT_DEV ;;
-        "xfs") mkfs.xfs $ROOT_DEV ;;
-        "btrfs") mkfs.btrfs $ROOT_DEV ;;
-    esac
-    
-    mkfs.ext4 $HOME_DEV
+    mkfs.ext4 "$ROOT_DEV"
+    mkfs.ext4 "$HOME_DEV"
     
     # Save mountpoints
     echo "$BOOT_DEV -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
     echo "$ROOT_DEV -> /" >> /tmp/asiraos/mounts
     echo "$HOME_DEV -> /home" >> /tmp/asiraos/mounts
     
-    echo -e "${GREEN}Standard partitions created successfully in free space${NC}"
+    echo -e "${GREEN}✓ Standard partitions created successfully in free space${NC}"
     partition_complete
 }
 
-# Create custom partitions in free space
+# Create custom partitions in free space - FIXED VERSION
 create_custom_partitions_freespace() {
     local disk=$1
     echo -e "${CYAN}Creating custom partitions in free space on /dev/${disk}...${NC}"
     
-    # Clear any existing mounts to avoid conflicts
+    # Clear existing mounts
     rm -f /tmp/asiraos/mounts
     mkdir -p /tmp/asiraos
     
-    # Get free space info
-    FREE_START=$(parted /dev/$disk print free 2>/dev/null | grep "Free Space" | tail -1 | awk '{print $1}')
-    FREE_END=$(parted /dev/$disk print free 2>/dev/null | grep "Free Space" | tail -1 | awk '{print $2}')
+    # Ask for additional partitions first
+    ADDITIONAL_PARTITIONS=$(gum choose --no-limit --cursor-prefix "> " --selected-prefix "* " \
+        "Home partition" \
+        "Swap partition" \
+        "Var partition" \
+        "Tmp partition")
+    
+    # Get real free space information
+    FREE_SPACE_INFO=$(get_free_space "/dev/$disk")
+    if [ -z "$FREE_SPACE_INFO" ]; then
+        gum style --foreground 196 "ERROR: No free space found"
+        gum input --placeholder "Press Enter to continue..."
+        disk_selection
+        return
+    fi
+    
+    FREE_START=$(echo "$FREE_SPACE_INFO" | awk '{print $1}')
     
     # Get next available partition numbers
-    LAST_PART=$(parted /dev/$disk print 2>/dev/null | awk '/^ *[0-9]/ {last=$1} END {print last}')
+    LAST_PART=$(parted "/dev/$disk" print 2>/dev/null | awk '/^ *[0-9]/ {last=$1} END {print last}')
     if [ -z "$LAST_PART" ]; then
-        LAST_PART=0
+        PART_NUM=1
+    else
+        PART_NUM=$((LAST_PART + 1))
     fi
     
-    local part_num=$((LAST_PART + 1))
-    
+    # Create boot partition
     if [ "$BOOT_MODE" = "EFI" ]; then
-        echo -e "${CYAN}- Creating EFI Boot partition (1GB)${NC}"
-        BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 1024}')
-        parted /dev/$disk mkpart primary fat32 $FREE_START $BOOT_END --script
-        parted /dev/$disk set $part_num boot on --script
+        CURRENT_END=$(echo "$FREE_START" | sed 's/GB//' | awk '{printf "%.2fGB", $1 + 1}')
+        parted "/dev/$disk" mkpart primary fat32 "$FREE_START" "$CURRENT_END" --script
+        parted "/dev/$disk" set "$PART_NUM" boot on --script
     else
-        echo -e "${CYAN}- Creating BIOS Boot partition (512MB)${NC}"
-        BOOT_END=$(echo "$FREE_START" | sed 's/[^0-9.]//g' | awk '{printf "%.0fMB", ($1*1000) + 512}')
-        parted /dev/$disk mkpart primary ext4 $FREE_START $BOOT_END --script
-        parted /dev/$disk set $part_num boot on --script
+        CURRENT_END=$(echo "$FREE_START" | sed 's/GB//' | awk '{printf "%.2fGB", $1 + 0.5}')
+        parted "/dev/$disk" mkpart primary ext4 "$FREE_START" "$CURRENT_END" --script
+        parted "/dev/$disk" set "$PART_NUM" boot on --script
     fi
     
-    if [[ "$disk" =~ nvme ]]; then
-        BOOT_DEV="/dev/${disk}p${part_num}"
-    else
-        BOOT_DEV="/dev/${disk}${part_num}"
+    BOOT_PART=$PART_NUM
+    ((PART_NUM++))
+    
+    # Create root partition (30GB)
+    ROOT_END=$(echo "$CURRENT_END" | sed 's/GB//' | awk '{printf "%.2fGB", $1 + 30}')
+    parted "/dev/$disk" mkpart primary ext4 "$CURRENT_END" "$ROOT_END" --script
+    ROOT_PART=$PART_NUM
+    ((PART_NUM++))
+    CURRENT_END=$ROOT_END
+    
+    # Create additional partitions
+    if [[ $ADDITIONAL_PARTITIONS == *"Swap partition"* ]]; then
+        SWAP_END=$(echo "$CURRENT_END" | sed 's/GB//' | awk '{printf "%.2fGB", $1 + 4}')
+        parted "/dev/$disk" mkpart primary linux-swap "$CURRENT_END" "$SWAP_END" --script
+        SWAP_PART=$PART_NUM
+        ((PART_NUM++))
+        CURRENT_END=$SWAP_END
     fi
-    ((part_num++))
     
-    echo -e "${CYAN}- Creating Root partition (30GB)${NC}"
-    ROOT_END=$(echo "$BOOT_END" | sed 's/MB//' | awk '{printf "%.0fMB", $1 + 30720}')
-    parted /dev/$disk mkpart primary $ROOT_FS $BOOT_END $ROOT_END --script
-    
-    if [[ "$disk" =~ nvme ]]; then
-        ROOT_DEV="/dev/${disk}p${part_num}"
-    else
-        ROOT_DEV="/dev/${disk}${part_num}"
+    if [[ $ADDITIONAL_PARTITIONS == *"Var partition"* ]]; then
+        VAR_END=$(echo "$CURRENT_END" | sed 's/GB//' | awk '{printf "%.2fGB", $1 + 10}')
+        parted "/dev/$disk" mkpart primary ext4 "$CURRENT_END" "$VAR_END" --script
+        VAR_PART=$PART_NUM
+        ((PART_NUM++))
+        CURRENT_END=$VAR_END
     fi
     
-    # Wait for kernel to recognize new partitions
+    if [[ $ADDITIONAL_PARTITIONS == *"Tmp partition"* ]]; then
+        TMP_END=$(echo "$CURRENT_END" | sed 's/GB//' | awk '{printf "%.2fGB", $1 + 5}')
+        parted "/dev/$disk" mkpart primary ext4 "$CURRENT_END" "$TMP_END" --script
+        TMP_PART=$PART_NUM
+        ((PART_NUM++))
+        CURRENT_END=$TMP_END
+    fi
+    
+    if [[ $ADDITIONAL_PARTITIONS == *"Home partition"* ]]; then
+        parted "/dev/$disk" mkpart primary ext4 "$CURRENT_END" "100%" --script
+        HOME_PART=$PART_NUM
+        ((PART_NUM++))
+    fi
+    
+    # Wait for kernel recognition
     sleep 3
-    partprobe /dev/$disk
+    partprobe "/dev/$disk"
+    udevadm settle
     
-    # Format partitions
-    echo -e "${CYAN}Formatting partitions...${NC}"
-    if [ "$BOOT_MODE" = "EFI" ]; then
-        mkfs.fat -F32 $BOOT_DEV
+    # Format and save mountpoints
+    if [[ "$disk" =~ nvme ]]; then
+        BOOT_DEV="/dev/${disk}p${BOOT_PART}"
+        ROOT_DEV="/dev/${disk}p${ROOT_PART}"
     else
-        mkfs.ext4 $BOOT_DEV
+        BOOT_DEV="/dev/${disk}${BOOT_PART}"
+        ROOT_DEV="/dev/${disk}${ROOT_PART}"
     fi
     
-    case $ROOT_FS in
-        "ext4") mkfs.ext4 $ROOT_DEV ;;
-        "ext3") mkfs.ext3 $ROOT_DEV ;;
-        "xfs") mkfs.xfs $ROOT_DEV ;;
-        "btrfs") mkfs.btrfs $ROOT_DEV ;;
-    esac
+    # Format boot and root
+    if [ "$BOOT_MODE" = "EFI" ]; then
+        mkfs.fat -F32 "$BOOT_DEV"
+    else
+        mkfs.ext4 "$BOOT_DEV"
+    fi
+    mkfs.ext4 "$ROOT_DEV"
     
-    # Save basic mountpoints
     echo "$BOOT_DEV -> $BOOT_MOUNTPOINT" >> /tmp/asiraos/mounts
     echo "$ROOT_DEV -> /" >> /tmp/asiraos/mounts
     
-    echo -e "${GREEN}Custom partitions created successfully in free space${NC}"
+    # Format additional partitions
+    if [[ $ADDITIONAL_PARTITIONS == *"Swap partition"* ]]; then
+        if [[ "$disk" =~ nvme ]]; then
+            SWAP_DEV="/dev/${disk}p${SWAP_PART}"
+        else
+            SWAP_DEV="/dev/${disk}${SWAP_PART}"
+        fi
+        mkswap "$SWAP_DEV"
+        echo "$SWAP_DEV -> swap" >> /tmp/asiraos/mounts
+    fi
+    
+    if [[ $ADDITIONAL_PARTITIONS == *"Var partition"* ]]; then
+        if [[ "$disk" =~ nvme ]]; then
+            VAR_DEV="/dev/${disk}p${VAR_PART}"
+        else
+            VAR_DEV="/dev/${disk}${VAR_PART}"
+        fi
+        mkfs.ext4 "$VAR_DEV"
+        echo "$VAR_DEV -> /var" >> /tmp/asiraos/mounts
+    fi
+    
+    if [[ $ADDITIONAL_PARTITIONS == *"Tmp partition"* ]]; then
+        if [[ "$disk" =~ nvme ]]; then
+            TMP_DEV="/dev/${disk}p${TMP_PART}"
+        else
+            TMP_DEV="/dev/${disk}${TMP_PART}"
+        fi
+        mkfs.ext4 "$TMP_DEV"
+        echo "$TMP_DEV -> /tmp" >> /tmp/asiraos/mounts
+    fi
+    
+    if [[ $ADDITIONAL_PARTITIONS == *"Home partition"* ]]; then
+        if [[ "$disk" =~ nvme ]]; then
+            HOME_DEV="/dev/${disk}p${HOME_PART}"
+        else
+            HOME_DEV="/dev/${disk}${HOME_PART}"
+        fi
+        mkfs.ext4 "$HOME_DEV"
+        echo "$HOME_DEV -> /home" >> /tmp/asiraos/mounts
+    fi
+    
+    echo -e "${GREEN}✓ Custom partitions created successfully in free space${NC}"
     partition_complete
+}
+
+# Partition completion
+partition_complete() {
+    gum style --foreground 46 "Partitioning completed successfully!"
+    echo ""
+    echo -e "${GREEN}Created mountpoints:${NC}"
+    if [ -f "/tmp/asiraos/mounts" ]; then
+        cat /tmp/asiraos/mounts
+    fi
+    echo ""
+    
+    CHOICE=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
+        "🚀 Continue to Disk Selection" \
+        "View Partition Details")
+    
+    case $CHOICE in
+        "🚀 Continue to Disk Selection")
+            disk_selection
+            ;;
+        "View Partition Details")
+            echo -e "${CYAN}Current partition layout:${NC}"
+            lsblk
+            gum input --placeholder "Press Enter to continue..."
+            disk_selection
+            ;;
+    esac
 }

@@ -1,8 +1,5 @@
 #!/bin/bash
-# AsiraOS - The Future of Linux
-# Copyright (c) 2024 AsiraOS Team
-# https://asiraos.github.io
-# Licensed under GPL-3.0
+
 
 set -euo pipefail
 
@@ -36,8 +33,9 @@ IMAGE_VERSION=2025.05.11
 EOF
   
   # Add AsiraOS repository (Arch-based systems only)
+
+  curl -sSl https://asiraos.github.io/core/asiraos-core.pubkey.asc | sudo pacman-key --add -
   if command -v pacman >/dev/null 2>&1; then
-    curl -sSl https://asiraos.github.io/core/asiraos-core.pubkey.asc | sudo pacman-key --add -
     if ! grep -q "\[asiraos-core\]" /etc/pacman.conf; then
       sed -i '/^\[core\]/i \
 [asiraos-core]\nSigLevel = Optional TrustAll\nServer = https://asiraos.github.io/core/$arch\n' /etc/pacman.conf
