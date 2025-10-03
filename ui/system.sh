@@ -339,10 +339,10 @@ install_system() {
     echo ""
     
     CONFIRM=$(gum choose --cursor-prefix "> " --selected-prefix "* " \
-        "🚀 Start Installation" \
+        "→ Start Installation" \
         "Go Back to Configuration")
     
-    if [ "$CONFIRM" = "🚀 Start Installation" ]; then
+    if [ "$CONFIRM" = "→ Start Installation" ]; then
         perform_installation
     else
         if [ "$BASIC_MODE" = true ]; then

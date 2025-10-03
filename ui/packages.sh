@@ -17,7 +17,7 @@ package_selection() {
     CHOICE=$(gum choose --cursor-prefix "▶ " --selected-prefix "◆ " --cursor.foreground="39" --selected.foreground="46" \
         "◎ Search and Add Package" \
         "✕ Clear All Packages" \
-        "🚀 Continue to Next Step" \
+        "→ Continue to Next Step" \
         "← Go Back")
     
     case $CHOICE in
@@ -30,7 +30,7 @@ package_selection() {
             sleep 1
             package_selection
             ;;
-        "🚀 Continue to Next Step")
+        "→ Continue to Next Step")
             if [ "$BASIC_MODE" = true ]; then
                 basic_step_13_timezone
             else

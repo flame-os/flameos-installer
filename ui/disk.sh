@@ -46,7 +46,8 @@ disk_selection() {
     
     # Build menu options - remove "Recommended" if partitions are configured
     if [ "$HAS_ROOT" = true ] && [ "$HAS_BOOT" = true ]; then
-        MENU_OPTIONS=("🚀 Continue to Next Step" "◉ Auto Partition" "⚙ Custom Partition Setup")
+        CONTINUE_OPTION=$(gum style --foreground 46 "→ Continue to Next Step")
+        MENU_OPTIONS=("$CONTINUE_OPTION" "◉ Auto Partition" "⚙ Custom Partition Setup")
     else
         MENU_OPTIONS=("◉ Auto Partition (Recommended)" "⚙ Custom Partition Setup")
     fi
@@ -73,7 +74,7 @@ disk_selection() {
             sleep 1
             disk_selection
             ;;
-        "🚀 Continue to Next Step")
+        *"Continue to Next Step"*)
             mount_partitions_and_continue
             ;;
         "← Go Back")
@@ -283,14 +284,14 @@ set_mountpoints() {
     
     CHOICE=$(gum choose --cursor-prefix "▶ " --selected-prefix "◆ " --cursor.foreground="39" --selected.foreground="46" \
         "◎ Set Another Mountpoint" \
-        "🚀 Continue to Disk Selection" \
+        "→ Continue to Disk Selection" \
         "← Go Back")
     
     case $CHOICE in
         "◎ Set Another Mountpoint")
             set_mountpoints "$disk"
             ;;
-        "🚀 Continue to Disk Selection")
+        "→ Continue to Disk Selection")
             disk_selection
             ;;
         "← Go Back")
@@ -1310,11 +1311,11 @@ partition_complete() {
     echo ""
     
     CHOICE=$(gum choose --cursor-prefix "▶ " --selected-prefix "◆ " --cursor.foreground="39" --selected.foreground="46" \
-        "🚀 Continue to Disk Selection" \
+        "→ Continue to Disk Selection" \
         "◎ View Partition Details")
     
     case $CHOICE in
-        "🚀 Continue to Disk Selection")
+        "→ Continue to Disk Selection")
             disk_selection
             ;;
         "◎ View Partition Details")
