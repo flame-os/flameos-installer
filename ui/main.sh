@@ -8,22 +8,22 @@ main_menu() {
     echo ""
     
     CHOICE=$(gum choose --cursor-prefix "→ " --selected-prefix "● " \
-        "🎯 Guided Installation" \
-        "⚙️  Expert Mode" \
-        "🔧 Configure Text Size" \
-        "❌ Exit")
+        "Guided Installation" \
+        "Expert Mode" \
+        "Configure Text Size" \
+        "Exit")
     
     case $CHOICE in
-        "🎯 Guided Installation")
+        "Guided Installation")
             basic_setup
             ;;
-        "⚙️  Expert Mode")
+        "Expert Mode")
             advanced_setup
             ;;
-        "🔧 Configure Text Size")
+        "Configure Text Size")
             configure_text_size
             ;;
-        "❌ Exit")
+        "Exit")
             gum style --foreground 46 --align center "Thank you for using AsiraOS!"
             exit 0
             ;;

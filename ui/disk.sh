@@ -46,28 +46,28 @@ disk_selection() {
     
     # Build menu options - remove "Recommended" if partitions are configured
     if [ "$HAS_ROOT" = true ] && [ "$HAS_BOOT" = true ]; then
-        MENU_OPTIONS=("🚀 Continue to Next Step" "💾 Auto Partition" "⚙️  Custom Partition Setup")
+        MENU_OPTIONS=("🚀 Continue to Next Step" "Auto Partition" "Custom Partition Setup")
     else
-        MENU_OPTIONS=("💾 Auto Partition (Recommended)" "⚙️  Custom Partition Setup")
+        MENU_OPTIONS=("Auto Partition (Recommended)" "Custom Partition Setup")
     fi
     
     # Add clear option if mounts exist
     if [ -f "/tmp/asiraos/mounts" ]; then
-        MENU_OPTIONS+=("🗑️  Clear All Mountpoints")
+        MENU_OPTIONS+=("Clear All Mountpoints")
     fi
     
-    MENU_OPTIONS+=("← Go Back")
+    MENU_OPTIONS+=("Go Back")
     
     CHOICE=$(gum choose --cursor-prefix "→ " --selected-prefix "● " "${MENU_OPTIONS[@]}")
     
     case $CHOICE in
-        "⚙️  Custom Partition Setup")
+        "Custom Partition Setup")
             manual_partition
             ;;
-        "💾 Auto Partition (Recommended)"|"💾 Auto Partition")
+        "Auto Partition (Recommended)"|"Auto Partition")
             auto_partition
             ;;
-        "🗑️  Clear All Mountpoints")
+        "Clear All Mountpoints")
             rm -f /tmp/asiraos/mounts
             gum style --foreground 46 "✓ All mountpoints cleared"
             sleep 1
@@ -76,7 +76,7 @@ disk_selection() {
         "🚀 Continue to Next Step")
             mount_partitions_and_continue
             ;;
-        "← Go Back")
+        "Go Back")
             if [ "$BASIC_MODE" = true ]; then
                 basic_step_1_disk
             else
@@ -143,11 +143,11 @@ manual_partition() {
     while read -r disk_line; do
         disk_name=$(echo "$disk_line" | awk '{print $1}' | sed 's|/dev/||')
         disk_size=$(echo "$disk_line" | awk '{print $2}')
-        DISK_OPTIONS+=("💽 $disk_name ($disk_size)")
+        DISK_OPTIONS+=("$disk_name ($disk_size)")
     done < <(get_real_disks)
     
     if [ ${#DISK_OPTIONS[@]} -eq 0 ]; then
-        gum style --foreground 196 "⚠️  No disks found"
+        gum style --foreground 196 "No disks found"
         gum input --placeholder "Press Enter to go back..."
         disk_selection
         return
@@ -157,16 +157,16 @@ manual_partition() {
     gum style --foreground 8 --align center "Select storage device"
     echo ""
     SELECTED_OPTION=$(gum choose --cursor-prefix "→ " --selected-prefix "● " "${DISK_OPTIONS[@]}")
-    DISK=$(echo "$SELECTED_OPTION" | cut -d' ' -f2)
+    DISK=$(echo "$SELECTED_OPTION" | cut -d' ' -f1)
     
     echo ""
     CHOICE=$(gum choose --cursor-prefix "→ " --selected-prefix "● " \
-        "🔧 Create/Edit Partitions (cfdisk)" \
-        "📍 Set Mountpoints" \
-        "← Go Back")
+        "Create/Edit Partitions (cfdisk)" \
+        "Set Mountpoints" \
+        "Go Back")
     
     case $CHOICE in
-        "🔧 Create/Edit Partitions (cfdisk)")
+        "Create/Edit Partitions (cfdisk)")
             gum style --foreground 39 "Opening partition editor for /dev/$DISK"
             sleep 1
             cfdisk /dev/$DISK
@@ -174,10 +174,10 @@ manual_partition() {
             gum input --placeholder "Press Enter to continue..."
             manual_partition
             ;;
-        "📍 Set Mountpoints")
+        "Set Mountpoints")
             set_mountpoints "$DISK"
             ;;
-        "← Go Back")
+        "Go Back")
             disk_selection
             ;;
     esac
